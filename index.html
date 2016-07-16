@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 	<title>Dungeon</title>
 	<style type="text/css">
         body, html { margin: 0; padding: 0; }
@@ -47,6 +47,7 @@
             top: 0;
             right: 0;
             position: fixed !important;
+            z-index: 1;
         }
         #fixedContainer > * {
             margin: 1em;
@@ -55,7 +56,7 @@
             background: rgba(0,0,0,0.5);
         }
         #joystickContainer {
-            width: 80vw;
+            width: 60vw;
             position: fixed !important;
             top: 0;
             left: 0;
@@ -78,7 +79,7 @@
         <script type="text/javascript" src="js/app.js"></script>
         <script type="text/javascript" src="js/websocket.js"></script>
         <script>
-          fullScreen.addEventListener('click', ( )=> {
+          document.getElementById('fullScreen').addEventListener('click', ( )=> {
             if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
               (
                 document.body.mozRequestFullScreen ||

@@ -59,6 +59,8 @@ var Player = function(x, y, isenemy) {
       document.addEventListener("keydown", me.key_down, false);
       document.addEventListener("keyup", me.key_up, false);
     }
+
+    Object.seal(me)
 	};
 
   me.load = function (data) {
@@ -288,7 +290,7 @@ var Objects = function() {
 
   me.objs.push(Player(5, 1, 'isenemy'))
 
-  var tempData = {"id":0.5219182117326571,"x":5.034241173117036,"y":1.6772855328758354,"dx":0.9931849187582592,"dy":0.11654920485050257,"cx":-0.07692247520133083,"cy":0.6555020463804503,"incr_x":0.01,"incr_y":0.01,"speed":2,"rotspeed":0.1,"up":false,"down":false,"right":false,"left":false,"cos_rotspeedp":0.9950041652780258,"cos_rotspeedn":0.9950041652780258,"sin_rotspeedp":0.09983341664682815,"sin_rotspeedn":-0.09983341664682815}
+  var tempData = {"id":0.5219182117326571,"x":5.034241173117036,"y":1.6772855328758354,"incr_x":0.01,"incr_y":0.01,"speed":2,"rotspeed":0.1,"up":false,"down":false,"right":false,"left":false}
 
   for (var k in tempData) if (tempData.hasOwnProperty(k)) {
     me.objs[me.objs.length - 1][k] = tempData[k]
@@ -383,13 +385,10 @@ var Map = function() {
 
 var Application = function(id) {
   var defaultWidth = 512
-  var defaultHeight = 400
+  var defaultHeight = 307
 	var me = {
 		id : id,
 		canvas : undefined,
-		canvas_ctx : undefined,
-
-		buffer : undefined,
 		ctx : undefined,
 
 		map : Map(),
@@ -398,11 +397,11 @@ var Application = function(id) {
 
 		// canvas size
 		width : 512 / 1,
-		height : 400 / 1,
+		height : 307 / 1,
 
 		// 3D scene size
 		_width : 512 / 1,
-		_height : 400 / 1,
+		_height : 307 / 1,
 
 		fps : 30,
 		_time : Date.now(),
@@ -423,18 +422,12 @@ var Application = function(id) {
     me._height = defaultHeight * resolution
 
 		if(me.canvas.getContext) {
-			me.canvas.width = me.width;
-			me.canvas.height = me.height;
+			me.canvas.width = me._width;
+			me.canvas.height = me._height;
 			me.canvas.style.background = "rgb(0, 0, 0)";
 
-			me.buffer = document.createElement('canvas');
-			me.buffer.width = me._width;
-			me.buffer.height = me._height;
-
-			me.ctx = me.buffer.getContext("2d");
-			me.canvas_ctx = me.canvas.getContext("2d");
+			me.ctx = me.canvas.getContext("2d");
       me.ctx.webkitImageSmoothingEnabled = me.ctx.imageSmoothingEnabled = me.ctx.mozImageSmoothingEnabled = me.ctx.oImageSmoothingEnabled = false;
-      me.canvas_ctx.webkitImageSmoothingEnabled = me.canvas_ctx.imageSmoothingEnabled = me.canvas_ctx.mozImageSmoothingEnabled = me.canvas_ctx.oImageSmoothingEnabled = false;
 
 			return true;
 		}
@@ -442,20 +435,16 @@ var Application = function(id) {
 	};
 
   var _grad
-  var _grad2
   me.draw_floor_ceiling_gradient = function () {
     if (!_grad) {
-      _grad = me.ctx.createLinearGradient(0, me._height/2, 0, me._height);
-      _grad.addColorStop(0, me.map.floor0);
+      _grad = me.ctx.createLinearGradient(0, 0, 0, me._height);
+      _grad.addColorStop(0, me.map.ceiling1);
+      _grad.addColorStop(0.5, me.map.ceiling0);
+      _grad.addColorStop(0.5000001, me.map.floor0);
       _grad.addColorStop(1, me.map.floor1);
-      _grad2 = me.ctx.createLinearGradient(0, 0, 0, me._height/2);
-      _grad2.addColorStop(1, me.map.ceiling0);
-      _grad2.addColorStop(0, me.map.ceiling1);
     }
     me.ctx.fillStyle = _grad
-    me.ctx.fillRect(0, me._height/2, me._width, me._height/2);
-    me.ctx.fillStyle = _grad2
-    me.ctx.fillRect(0, 0, me._width, me._height/2);
+    me.ctx.fillRect(0, 0, me._width, me._height);
   }
 
 	var zBuffer = []; // used for sprites (objects)
@@ -540,7 +529,7 @@ var Application = function(id) {
 			zBuffer[col] = wall_dist;
 
 			wall_height = Math.abs(Math.floor(me._height / wall_dist));
-			draw_start = -wall_height/2 + me._height/2;
+			draw_start = (-wall_height/2 + me._height/2)|0;
 
 			tex = me.map.get_texture(mx, my);
 			wall_x = Math.floor(wall_x * tex.width);
@@ -602,8 +591,8 @@ var Application = function(id) {
         );
         start_x = 0;
       }
-      var start_y = Math.floor(-(ceiling_height * sprites[i].obj.sprite.ingame_height)/2 + me._height/2) +
-        (ceiling_height * sprites[i].obj.sprite.ingame_displacement_y)
+      var start_y = Math.floor(-(ceiling_height * sprites[i].obj.sprite.ingame_height)/2 + me._height/2 +
+        (ceiling_height * sprites[i].obj.sprite.ingame_displacement_y))
 			var end_x = Math.floor((sprite_width * sprites[i].obj.sprite.ingame_width)/2 + screen_x);
       if (end_x > me._width) {
         end_x = me._width - xInc
@@ -653,15 +642,13 @@ var Application = function(id) {
       }
 		}
 
-		me.canvas_ctx.drawImage(me.buffer, 0, 0);
-
 		// FPS
 		var time = Date.now();
 
 		me._frames++;
 
-		me.canvas_ctx.fillStyle = "rgb(255, 0, 0)";
-		me.canvas_ctx.fillText("FPS: " + Math.round(me._frames*1000 / (time-me._time)), 1, me.height-5);
+		me.ctx.fillStyle = "rgb(255, 0, 0)";
+		me.ctx.fillText("FPS: " + Math.round(me._frames*1000 / (time-me._time)), 1, me.height-5);
 
 		if(time > me._time + me.fps*1000) {
 			me._time = time;
