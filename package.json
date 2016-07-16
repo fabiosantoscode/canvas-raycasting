@@ -1,0 +1,22 @@
+{
+  "name": "canvas-raycasting",
+  "version": "1.0.0",
+  "description": "Canvas + Raycasting Experiment ==============================",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reidrac/canvas-raycasting.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/reidrac/canvas-raycasting/issues"
+  },
+  "homepage": "https://github.com/reidrac/canvas-raycasting#readme",
+  "dependencies": {
+    "ws": "^1.1.1"
+  }
+}
