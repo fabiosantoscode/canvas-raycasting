@@ -1,15 +1,27 @@
 'use strict'
 
+var TAU = Math.PI * 2
+var HALF_TAU = Math.PI
+var QUARTER_TAU = Math.PI / 2
+
 var Textures = (function() {
   var ver = 1, // increase this for refreshing the cache
     i,
-    files = [ {
-      src: 'img/gradient.png',
-      ingame_height: .25,
-      ingame_width: .25,
-      ingame_displacement_x: 0,
-      ingame_displacement_y: .5,
-    } ];
+    files = [
+      {
+        src: 'img/bot.png',
+        ingame_height: .25,
+        ingame_width: .25,
+        ingame_displacement_x: 0,
+        ingame_displacement_y: .5,
+      },
+      {
+        src: 'img/room.png',
+      },
+      {
+        src: 'img/wall.jpg',
+      }
+    ];
 
   var me = {
     textures: [],
@@ -18,12 +30,23 @@ var Textures = (function() {
   for(i=0; i<files.length; i++) {
     me.textures[i] = new Image();
     me.textures[i].src = files[i].src + "?" + ver;
-    me.textures[i].style.imageRendering = '-moz-crisp-edges';
-    me.textures[i].style.imageRendering = 'pixelated';
-    me.textures[i].ingame_height = files[i].ingame_height
-    me.textures[i].ingame_width = files[i].ingame_width
-    me.textures[i].ingame_displacement_x = files[i].ingame_displacement_x
-    me.textures[i].ingame_displacement_y = files[i].ingame_displacement_y
+  }
+
+  me.init = () => {
+    me.textures.forEach((texture, i) => {
+      me.textures[i].style.imageRendering = '-moz-crisp-edges';
+      me.textures[i].style.imageRendering = 'pixelated';
+      me.textures[i].ingame_height = files[i].ingame_height
+      me.textures[i].ingame_width = files[i].ingame_width
+      me.textures[i].ingame_displacement_x = files[i].ingame_displacement_x
+      me.textures[i].ingame_displacement_y = files[i].ingame_displacement_y
+      me.textures[i].index = i
+      var flipped = document.createElement('canvas')
+      var fCtx = flipped.getContext('2d')
+      fCtx.scale(-1, 1)
+      fCtx.drawImage(me.textures[i], -me.textures[i].width, 0)
+      me.textures[i].flipped = flipped
+    })
   }
 
   return me
@@ -112,7 +135,6 @@ var Player = function(x, y, isenemy) {
     var prev_angle = me.angle
 		var change_x = me.extrapolate_dx(1) * me.speed * dt;
 		var change_y = me.extrapolate_dy(1) * me.speed * dt;
-		var cx, dx;
 
     var joystickX = Math.min(Math.max(-1, joystick.deltaX() / 80), 1)
     var joystickY = Math.min(Math.max(-1, joystick.deltaY() / 80), 1)
@@ -300,6 +322,7 @@ var Objects = function() {
 };
 
 var Map = function() {
+  var _ = -1
 	var me = {
 		UNUSED : -1,
 		FREE : 0,
@@ -308,28 +331,27 @@ var Map = function() {
 
 		name : 'Test Dungeon',
 		data : [
-         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-				 1,0,0,0,0,0,0,0,1,1,1,0,0,0,1,0,0,0,0,1,
-				 1,0,1,1,0,1,1,0,0,1,1,0,0,0,0,0,0,1,0,1,
-				 1,0,1,1,0,1,1,0,0,0,0,0,1,1,0,1,0,0,0,1,
-				 1,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,1,0,1,
-				 1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,
-				 1,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,
-				 1,0,0,0,1,1,1,0,0,0,0,0,0,1,0,1,0,1,1,1,
-				 1,1,0,1,1,1,1,0,0,0,1,1,0,0,0,0,0,1,1,1,
-				 1,1,0,0,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,
-				 1,1,1,0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,
-				 1,1,1,0,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,
-				 1,1,1,1,0,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,
-				 1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,
-				 1,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,
-				 1,1,0,1,1,0,0,1,1,1,1,1,1,1,0,0,1,1,1,1,
-				 1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,0,1,1,1,1,
-				 1,1,1,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1,
-				 1,1,1,1,1,1,0,0,0,1,1,1,1,0,1,1,1,0,1,1,
-				 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+         2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+				 2,_,_,_,_,_,_,_,2,2,2,_,_,_,2,_,_,_,_,2,
+				 2,_,2,2,_,2,2,_,_,2,2,_,_,_,_,_,_,2,_,2,
+				 2,_,2,2,_,2,2,_,_,_,_,_,2,2,_,2,_,_,_,2,
+				 2,_,_,_,_,2,2,2,2,2,2,2,2,2,_,_,_,2,_,2,
+				 2,2,_,2,2,2,2,2,2,2,2,2,2,2,2,2,2,_,_,2,
+				 2,_,_,_,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
+				 2,_,_,_,2,2,2,_,_,_,_,_,_,2,_,2,_,2,2,2,
+				 2,2,_,2,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
+				 2,2,_,_,2,2,2,2,_,2,2,2,_,2,_,2,_,2,2,2,
+				 2,2,2,_,_,_,_,_,_,2,2,2,_,_,_,_,_,2,2,2,
+				 2,2,2,_,_,_,2,2,2,2,2,2,2,2,_,2,2,2,2,2,
+				 2,2,2,2,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
+				 2,_,_,_,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
+				 2,_,_,2,2,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
+				 2,2,_,2,2,_,_,2,2,2,2,2,2,2,_,_,2,2,2,2,
+				 2,2,_,_,_,_,_,_,2,2,2,2,2,2,2,_,2,2,2,2,
+				 2,2,2,2,2,_,_,_,_,2,2,2,_,_,_,_,_,_,_,2,
+				 2,2,2,2,2,2,_,_,_,2,2,2,2,_,2,2,2,_,2,2,
+				 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
 			     ],
-		automap : [],
 		// up to 33 x 23
 		width : 20,
 		height : 20,
@@ -337,34 +359,14 @@ var Map = function() {
 		textures : [],
 		bg : undefined,
 
-		floor0 : 'rgb(0, 0, 0)',
-		floor1 : 'rgb(80, 90, 100)',
-		ceiling0 : 'rgb(0, 0, 0)',
-		ceiling1 : 'rgb(80, 80, 80)',
-
 		objs : Objects()
 	};
 
 	me.init = function() {
-		var ver = 1, // increase this for refreshing the cache
-			i,
-			files = [ '', 'img/wall.jpg'];
-		
-		for(i=0; i<files.length; i++) {
-			me.textures[i] = new Image();
-			me.textures[i].src = files[i] + "?" + ver;
-		}
-
-		for(i=0; i<me.width*me.height; i++) {
-			me.automap[i] = me.UNUSED;
-		}
-
-		me.bg = new Image();
-		me.bg.src = 'img/map.jpg?' + ver;
 	};
 
 	me.texture = function(idx) {
-		return me.textures[idx];
+		return Textures.textures[idx];
 	};
 
 	me.get_texture = function(x, y) {
@@ -375,7 +377,7 @@ var Map = function() {
 		if(x<0 || x>=me.width || y<0 || y>=me.height) {
 			return false;
 		}
-		return me.data[y*me.width + x] == 0;
+		return me.data[y*me.width + x] == -1;
 	};
 
 	me.init();
@@ -431,25 +433,24 @@ var Application = function(id) {
 
 			return true;
 		}
+    zBufferPassCacheKey = ''  // clear z-buffer cache
 		return false;
 	};
 
-  var _grad
   me.draw_floor_ceiling_gradient = function () {
-    if (!_grad) {
-      _grad = me.ctx.createLinearGradient(0, 0, 0, me._height);
-      _grad.addColorStop(0, me.map.ceiling1);
-      _grad.addColorStop(0.5, me.map.ceiling0);
-      _grad.addColorStop(0.5000001, me.map.floor0);
-      _grad.addColorStop(1, me.map.floor1);
-    }
-    me.ctx.fillStyle = _grad
-    me.ctx.fillRect(0, 0, me._width, me._height);
+    me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
   }
 
 	var zBuffer = []; // used for sprites (objects)
-  var _objectsSortedCache
-  var _objectsSortedCacheKey = NaN
+  var wallXBuffer = [];
+  var normalBuffer = [];
+  var textureBuffer = [];
+  var mapSquareIDBuffer = [];
+  var isFlippedBuffer = [];
+  var zBufferPassCacheKey = ''
+
+  const mod = (a, n) => a - Math.floor(a/n) * n
+  const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
 	me.draw = function(dt) {
 		// floor / ceiling 
     me.draw_floor_ceiling_gradient();
@@ -466,105 +467,175 @@ var Application = function(id) {
     var camera, ray_x, ray_y, ray_dx, ray_dy, mx, my, delta_x,
       delta_y, step_x, step_y, horiz, wall_dist, wall_height,
       wall_x, draw_start, tex;
-    var xInc = 2
-		for(col=0; col<me._width; col+=xInc)
-		{
-			camera = 2 * col / me._width - 1;
-			ray_x = player_x;
-			ray_y = player_y;
-			mx = Math.floor(ray_x);
-			my = Math.floor(ray_y);
-			ray_dx = player_dx + player_cx*camera;
-			ray_dy = player_dy + player_cy*camera;
-			delta_x = Math.sqrt(1 + (ray_dy * ray_dy) / (ray_dx*ray_dx));
-			delta_y = Math.sqrt(1 + (ray_dx * ray_dx) / (ray_dy*ray_dy));
+    var wall_normal
+    var originalXInc = 2
+    var xInc = originalXInc
+    var k = ''.concat(player_x,':',player_y,':',player_dx,':',player_dy,':',player_cx,':',player_cy)
+    if (k !== zBufferPassCacheKey) {
+      zBufferPassCacheKey = k
+      for(col=0; col<me._width; col+=xInc) {
+        camera = 2 * col / me._width - 1;
+        ray_x = player_x;
+        ray_y = player_y;
+        mx = Math.floor(ray_x);
+        my = Math.floor(ray_y);
+        ray_dx = player_dx + player_cx*camera;
+        ray_dy = player_dy + player_cy*camera;
+        delta_x = Math.sqrt(1 + (ray_dy * ray_dy) / (ray_dx*ray_dx));
+        delta_y = Math.sqrt(1 + (ray_dx * ray_dx) / (ray_dy*ray_dy));
 
-			// initial step for the ray
-			if(ray_dx < 0) {
-				step_x = -1;
-				var dist_x = (ray_x - mx) * delta_x;
-			} else {
-				step_x = 1;
-				var dist_x = (mx + 1 - ray_x) * delta_x;
-			}
-			if(ray_dy < 0) {
-				step_y = -1;
-				var dist_y = (ray_y - my) * delta_y;
-			} else {
-				step_y = 1;
-				var dist_y = (my + 1 - ray_y) * delta_y;
-			}
+        // initial step for the ray
+        if(ray_dx < 0) {
+          step_x = -1;
+          var dist_x = (ray_x - mx) * delta_x;
+        } else {
+          step_x = 1;
+          var dist_x = (mx + 1 - ray_x) * delta_x;
+        }
+        if(ray_dy < 0) {
+          step_y = -1;
+          var dist_y = (ray_y - my) * delta_y;
+        } else {
+          step_y = 1;
+          var dist_y = (my + 1 - ray_y) * delta_y;
+        }
 
-			// DDA
-			while(true) {
-				if(dist_x < dist_y) {
-					dist_x += delta_x;
-					mx += step_x;
-					horiz = true;
-				} else {
-					dist_y += delta_y;
-					my += step_y;
-					horiz = false;
-				}
+        // DDA
+        while(true) {
+          if(dist_x < dist_y) {
+            dist_x += delta_x;
+            mx += step_x;
+            horiz = true;
+            wall_normal = step_x > 0 ? HALF_TAU : 0
+          } else {
+            dist_y += delta_y;
+            my += step_y;
+            horiz = false;
+            wall_normal = step_y > 0 ? (QUARTER_TAU * 3) : QUARTER_TAU
+          }
 
-				if(!me.map.is_free(mx, my)) {
-					break;
-				}
-			}
+          if(!me.map.is_free(mx, my)) {
+            break;
+          }
+        }
 
-			// wall distance
-			if(horiz) {
-				wall_dist = (mx - ray_x + (1 - step_x) * 0.5) / ray_dx;
-				wall_x = ray_y + ((mx - ray_x + (1 - step_x) * 0.5) / ray_dx) * ray_dy;
-			} else {
-				wall_dist = (my - ray_y + (1 - step_y) * 0.5) / ray_dy;
-				wall_x = ray_x + ((my - ray_y + (1 - step_y) * 0.5) / ray_dy) * ray_dx;
-			}
-			wall_x -= Math.floor(wall_x);
+        // wall distance
+        if(horiz) {
+          wall_dist = (mx - ray_x + (1 - step_x) * 0.5) / ray_dx;
+          wall_x = ray_y + ((mx - ray_x + (1 - step_x) * 0.5) / ray_dx) * ray_dy;
+        } else {
+          wall_dist = (my - ray_y + (1 - step_y) * 0.5) / ray_dy;
+          wall_x = ray_x + ((my - ray_y + (1 - step_y) * 0.5) / ray_dy) * ray_dx;
+        }
+        wall_x -= Math.floor(wall_x);
 
-			if(wall_dist < 0) {
-				wall_dist = -wall_dist;
-			}
+        if(wall_dist < 0) {
+          wall_dist = -wall_dist;
+        }
 
-			zBuffer[col] = wall_dist;
+        tex = me.map.get_texture(mx, my);
+
+        wall_x = Math.floor(wall_x * tex.width);
+
+        isFlippedBuffer[col] = false
+        if(horiz && ray_dx > 0) {
+          isFlippedBuffer[col] = true
+        }
+        if(!horiz && ray_dy < 0) {
+          isFlippedBuffer[col] = true
+        }
+
+        wallXBuffer[col] = wall_x
+        textureBuffer[col] = tex
+        normalBuffer[col] = wall_normal;
+        zBuffer[col] = wall_dist;
+        mapSquareIDBuffer[col] = my * me.map.width + mx
+      }
+    }
+
+    for (col = 0; col < me._width; col += xInc) {
+      wall_x = wallXBuffer[col]
+      wall_dist = zBuffer[col]
+      tex = textureBuffer[col]
+      wall_normal = normalBuffer[col]
+      var map_square_id = mapSquareIDBuffer[col]
 
 			wall_height = Math.abs(Math.floor(me._height / wall_dist));
 			draw_start = (-wall_height/2 + me._height/2)|0;
 
-			tex = me.map.get_texture(mx, my);
-			wall_x = Math.floor(wall_x * tex.width);
-			if(horiz && ray_dx > 0) {
-				wall_x = tex.width - wall_x -1;
-			}
-			if(!horiz && ray_dy < 0) {
-				wall_x = tex.width - wall_x -1;
-			}
+      var player_behind_angle = player_angle + HALF_TAU % TAU
+      var player_wall_angle = angle_distance(wall_normal, player_behind_angle)
 
-			me.ctx.drawImage(tex, wall_x, 0, 1, tex.height, col, draw_start, xInc, wall_height);
+      var width = xInc
+      var end_wall_x = wall_x + 1
+      var initial_wall_normal = wall_normal
+      var angle_d
+      while ((angle_d = angle_distance(normalBuffer[col + width - xInc], player_behind_angle)), (
+        width < 3 ||
+        angle_d < 0.1 ||
+        wall_dist < 1 && width < 10 ||
+        wall_dist > 2 && width < 5 ||
+        wall_dist > 2 && angle_d < 0.3 && width < 100 ||
+        wall_dist > 2 && angle_d < 0.4 && width < 40
+      ) &&
+        mapSquareIDBuffer[col + width + xInc] === map_square_id &&
+        normalBuffer[col + width + xInc] === initial_wall_normal
+      ) {
+        width += xInc
+        wall_normal = normalBuffer[col + width - xInc]
+        wall_dist = zBuffer[col + width + xInc]
+        end_wall_x = wallXBuffer[col + width]
+      }
+      var use_width = width
+      var use_tex = tex
+      var use_col = col
+      var use_tex
+      if (isFlippedBuffer[col]) {
+        use_tex = tex.flipped
+      }
+      if (end_wall_x < wall_x) {
+        end_wall_x = 64 - end_wall_x
+        wall_x = 64 - wall_x
+      }
+      me.ctx.drawImage(use_tex,
+        wall_x, 0,
+        Math.max(1, end_wall_x - wall_x), tex.height,
+        use_col, draw_start,
+        use_width, wall_height
+      );
+      col += width - xInc
+		}
 
-      if (me.shadows && col % 8 === 0) {
+    // Shadows
+
+    if (me.shadows) {
+      xInc = originalXInc * 5
+      var halfXInc = xInc / 2
+      for (col = 0; col < me._width; col += xInc) {
         // light
         var prevTint = tint
-        var tint = (wall_height*1.6)/me._height;
-        var c = Math.round(60/tint);
-        c = 60-c;
-        if(c<0) {
-          c = 0;
-        }
-        tint = 1-tint;
+        var tint = Math.min(0.75, Math.max(0, 0.1 + (zBuffer[col] * 0.12)));
         tint = ((tint * 4)|0) * 0.25
         if (tint > 0.1 && tint !== prevTint) {
-			    me.ctx.fillStyle = "rgba(" + c + ", " + c + ", " + c + ", " + tint + ")";
+          me.ctx.fillStyle = "rgba(" + 0 + ", " + 0 + ", " + 0 + ", " + tint + ")";
         }
-        if (tint > 0.1) me.ctx.fillRect(col - 8, draw_start, 8, wall_height);
+        if (tint > 0.1) {
+          var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
+          var draw_start = (-wall_height/2 + me._height/2)|0;
+          var width = xInc;
+          while (Math.abs(zBuffer[col + width] - zBuffer[col]) < 0.05) { width += xInc }
+          me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
+          col += width - xInc
+        }
       }
-		}
+    }
 
 		// sprites (Objects)
 		var i, col, sprite_x, sprite_y, inv, trans_x, trans_y, screen_x,
 			sprite_width, start_x, start_y, tex, tex_x;
 
 		var sprites = me.map.objs.sorted(player_x, player_y);
+    xInc = originalXInc
 		for(i=0; i<sprites.length; i++) {
 			sprite_x = sprites[i].obj.extrapolate_x(dt) - player_x;
 			sprite_y = sprites[i].obj.extrapolate_y(dt) - player_y;
@@ -578,10 +649,12 @@ var Application = function(id) {
 
       var sqDist = sprites[i].obj.sqDistance(player_x, player_y)
       if (sqDist < 0) { continue; }
-      var ceiling_height = Math.abs(me._height / Math.sqrt(sqDist))
+      var dist = Math.sqrt(sqDist)
+      var ceiling_height = Math.abs(me._height / dist)
 			var sprite_width = ceiling_height
 
 			start_x = Math.floor(-(sprite_width * sprites[i].obj.sprite.ingame_width)/2 + screen_x);
+      start_x = Math.floor(start_x / xInc) * xInc
       var tex_start_x = 0;
       if(start_x < 0) {
         tex_start_x = -(
@@ -597,48 +670,47 @@ var Application = function(id) {
       if (end_x > me._width) {
         end_x = me._width - xInc
       }
+      end_x = Math.floor(end_x / xInc) * xInc
 
-      var half_height = me._height / 2
-      start_x = Math.floor(start_x / xInc) * xInc
-      if (!sprites[i].obj.sprite) {
-        me.ctx.fillStyle = 'red'
-        me.ctx.fillRect(
-          start_x,
-          half_height - (ceiling_height / 2),
-          end_x - start_x,
-          ceiling_height
-        );
-      } else {
-        for (var col = start_x; col < end_x; col += xInc * 4) {
-          if (zBuffer[col] < Math.sqrt(sqDist)) {
-            continue
-          }
-          var tex_chunk_width = sprites[i].obj.sprite.width / (ceiling_height * sprites[i].obj.sprite.ingame_width)
-          var tex_x = Math.floor((col - start_x) * tex_chunk_width)
-          me.ctx.drawImage(
-            sprites[i].obj.sprite,
+      if (zBuffer[start_x] < dist && zBuffer[end_x] < dist) {
+        continue
+      }
 
-            Math.floor((tex_start_x * sprites[i].obj.sprite.width) + tex_x),
-            0,
+      if (zBuffer[start_x] > dist && zBuffer[end_x] > dist) {
+        // Draw entire sprite, no need to draw per-column
+        me.ctx.drawImage(
+          sprites[i].obj.sprite,
 
-            Math.ceil( tex_chunk_width * 8 ),
-            sprites[i].obj.sprite.height,
+          0, 0,
+          sprites[i].obj.sprite.width, sprites[i].obj.sprite.height,
 
-            col,
-            start_y,
+          start_x, start_y,
+          end_x - start_x, Math.floor(ceiling_height * sprites[i].obj.sprite.ingame_height)
+        )
+        continue
+      }
 
-            xInc * 4,
-            (ceiling_height * sprites[i].obj.sprite.ingame_height)
-          )
-          /*
-          me.ctx.fillRect(
-            col,
-            start_y,
-            1,
-            (ceiling_height * sprites[i].obj.sprite.ingame_height)
-          );
-          */
+      for (var col = start_x; col < end_x; col += xInc * 4) {
+        if (zBuffer[col] < dist) {
+          continue
         }
+        var tex_chunk_width = sprites[i].obj.sprite.width / (ceiling_height * sprites[i].obj.sprite.ingame_width)
+        var tex_x = Math.floor((col - start_x) * tex_chunk_width)
+        me.ctx.drawImage(
+          sprites[i].obj.sprite,
+
+          Math.floor((tex_start_x * sprites[i].obj.sprite.width) + tex_x),
+          0,
+
+          Math.ceil( tex_chunk_width * 8 ),
+          sprites[i].obj.sprite.height,
+
+          col,
+          start_y,
+
+          xInc * 4,
+          Math.floor(ceiling_height * sprites[i].obj.sprite.ingame_height)
+        )
       }
 		}
 
@@ -686,7 +758,7 @@ var Application = function(id) {
 	};
 
 	me.run = function() {
-		if(me.setup()) {
+		if(me.setup(Settings)) {
 			me.loop();
 		}
 	};
@@ -729,6 +801,7 @@ var Application = function(id) {
 
 var app
 window.onload = function () {
+  Textures.init()
 	app = Application("myCanvas");
 	app.run();
 
