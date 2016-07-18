@@ -20,6 +20,26 @@ var Textures = (function() {
       },
       {
         src: 'img/wall.jpg',
+        flipped: true,
+      },
+      {
+        src: 'img/object.png',
+        ingame_height: .25,
+        ingame_width: .25,
+        ingame_displacement_x: 0,
+        ingame_displacement_y: .5,
+      },
+      {
+        src: 'img/explosion-1.png',
+        ingame_height: 1.2,
+        ingame_width: 1.2,
+        ingame_displacement_x: 0,
+        ingame_displacement_y: .5,
+        animation: {
+          fps: 8,
+          frames: [ 1, 2, 3, 4 ].map(n => 'img/explosion-'+n+'.png'),
+          repeat: false,
+        }
       }
     ];
 
@@ -30,6 +50,14 @@ var Textures = (function() {
   for(i=0; i<files.length; i++) {
     me.textures[i] = new Image();
     me.textures[i].src = files[i].src + "?" + ver;
+    if (files[i].animation) {
+      me.textures[i].animation = files[i].animation
+      for (var k = 0; k < files[i].animation.frames.length; k++) {
+        var img = new Image()
+        img.src = files[i].animation.frames[k]
+        me.textures[i].animation.frames[k] = img
+      }
+    }
   }
 
   me.init = () => {
@@ -41,11 +69,13 @@ var Textures = (function() {
       me.textures[i].ingame_displacement_x = files[i].ingame_displacement_x
       me.textures[i].ingame_displacement_y = files[i].ingame_displacement_y
       me.textures[i].index = i
-      var flipped = document.createElement('canvas')
-      var fCtx = flipped.getContext('2d')
-      fCtx.scale(-1, 1)
-      fCtx.drawImage(me.textures[i], -me.textures[i].width, 0)
-      me.textures[i].flipped = flipped
+      if (files[i].flipped) {
+        var flipped = document.createElement('canvas')
+        var fCtx = flipped.getContext('2d')
+        fCtx.scale(-1, 1)
+        fCtx.drawImage(me.textures[i], -me.textures[i].width, 0)
+        me.textures[i].flipped = flipped
+      }
     })
   }
 
@@ -72,8 +102,11 @@ var Player = function(x, y, isenemy) {
     right : false,
     left : false,
 
-    sprite : Textures.textures[0]
+    sprite : Textures.textures[0],
+    radius : 1,
   };
+  me.sqRadius = me.radius * me.radius
+  me.cubeRadius = me.radius * me.radius * me.radius
 
 	me.init = function() {
 
@@ -133,8 +166,8 @@ var Player = function(x, y, isenemy) {
     var prev_incr_x = me.incr_x
     var prev_incr_y = me.incr_y
     var prev_angle = me.angle
-		var change_x = me.extrapolate_dx(1) * me.speed * dt;
-		var change_y = me.extrapolate_dy(1) * me.speed * dt;
+    var change_x = Common.extrapolate_dx(me, 1) * me.speed * dt;
+    var change_y = Common.extrapolate_dy(me, 1) * me.speed * dt;
 
     var joystickX = Math.min(Math.max(-1, joystick.deltaX() / 80), 1)
     var joystickY = Math.min(Math.max(-1, joystick.deltaY() / 80), 1)
@@ -183,14 +216,6 @@ var Player = function(x, y, isenemy) {
     }
   }
 
-  me.extrapolate_x = (dt) => me.x + (me.incr_x * dt)
-  me.extrapolate_y = (dt) => me.y + (me.incr_y * dt)
-  me.extrapolate_angle = (dt) => me.angle + (me.incr_angle * dt)
-  me.extrapolate_dx = (dt, angle = me.extrapolate_angle(dt)) => Math.cos(angle)
-  me.extrapolate_dy = (dt, angle = me.extrapolate_angle(dt)) => Math.sin(angle)
-  me.extrapolate_cx = (dt, angle = me.extrapolate_angle(dt)) => -Math.sin(angle) * 0.66
-  me.extrapolate_cy = (dt, angle = me.extrapolate_angle(dt)) => Math.cos(angle) * 0.66
-
 	me.key_down = function(event) {
 		// left
 		if(event.keyCode == 37) {
@@ -229,27 +254,158 @@ var Player = function(x, y, isenemy) {
 		}
 	};
 
-	me.sqDistance = function(x, y) {
-		return Math.pow(x-me.x, 2) + Math.pow(y-me.y, 2);
-	};
-
 	me.init();
 
 	return me;
 };
 
-var Obj = function(name, x, y, size, texture) {
+var Grenade = function(x, y, isenemy) {
+  var me = {
+    x: x + 0.5,
+    y: y + 0.5,
+    z: 1,
+    incr_x: 0,
+    incr_y: 0,
+    incr_z: 0,
+    speed: 0.3,
+    weight: 0.3,
+    bounciness: 0.5,
+    wall_bounciness: 0.3,
+    z_air_resistance: 0.1,
+    ceiling_bounciness: 0.8,
+    time_left: 3,
+    sprite: Textures.textures[3],
+    radius: 0.3,
+  }
+
+  me.sqRadius = me.radius * me.radius;
+  me.cubeRadius = me.radius * me.radius * me.radius;
+
+  me.update = function (map, dt) {
+    me.x += me.incr_x
+    me.y += me.incr_y
+    me.z += me.incr_z
+
+    me.incr_z -= me.weight * dt
+
+    me.incr_z *= 1 - (me.z_air_resistance * dt)
+
+    me.collide(map)
+
+    me.time_left -= dt
+    if (me.time_left <= 0) {
+      return me.explode()
+    }
+
+    var n = 0;
+    var sprite;
+    while ((sprite = map.contains_sprite(Math.floor(me.x), Math.floor(me.y), n++, me))) {
+      if (me.should_explode_on(sprite) && Common.collidingWith3d(me, sprite)) {
+        return me.explode()
+      }
+    }
+  }
+
+  me.should_explode_on = () => true
+
+  me.collide = function (map) {
+    if (me.z <= 0) {
+      me.z = -me.z / 2
+      me.incr_z = -me.incr_z * me.bounciness
+      if (me.incr_z < 0.05) {
+        me.incr_z = 0
+      }
+    }
+    if (me.z > 1) {
+      me.z -= me.z - 1
+      me.incr_z = -me.incr_z * me.ceiling_bounciness
+    }
+    if (!map.is_free(Math.floor(me.x), Math.floor(me.y))) {
+      // bounce back
+      if (Math.floor(me.x - me.incr_x) !== Math.floor(me.x)) {
+        me.x -= me.incr_x
+        me.incr_x = -me.incr_x * me.wall_bounciness
+      }
+      if (Math.floor(me.y - me.incr_y) !== Math.floor(me.y)) {
+        me.y -= me.incr_y
+        me.incr_y = -me.incr_y * me.wall_bounciness
+      }
+    }
+  }
+
+  me.explode = function () {
+    app.map.objs.objs.push(Explosion(me.x, me.y, me.z))
+    app.add_explosion(app.map.objs.objs[app.map.objs.objs.length - 1])
+    app.map.objs.remove(me)
+  }
+
+  return me
+}
+
+var Explosion = function (x, y, z) {
+  var me = {
+    x: x,
+    y: y,
+    z: z,
+    incr_x: 0,
+    incr_y: 0,
+    incr_z: 0,
+    speed: 0.3,
+    weight: 0.3,
+    bounciness: 0.5,
+    z_air_resistance: 0.1,
+    time_left: 3,
+    sprite: Textures.textures[4],
+    radius: 0.3,
+    time_left: 1,
+    animation_start: Date.now(),
+  }
+
+  me.sqRadius = me.radius * me.radius
+  me.cubeRadius = me.radius * me.radius * me.radius
+
+  me.update = (map, dt) => {
+    me.time_left -= dt
+    if (me.time_left <= 0) {
+      app.map.objs.remove(me)
+    }
+  }
+
+  return me
+}
+
+var Common = function () {
+  var me = {}
+  me.extrapolate_x = (me, dt) => me.x + (me.incr_x * dt)
+  me.extrapolate_y = (me, dt) => me.y + (me.incr_y * dt)
+  me.extrapolate_z = (me, dt) => me.z + (me.incr_z * dt)
+  me.extrapolate_angle = (me, dt) => me.angle + (me.incr_angle * dt)
+  me.extrapolate_dx = (me, dt, angle = Common.extrapolate_angle(me, dt)) => Math.cos(angle)
+  me.extrapolate_dy = (me, dt, angle = Common.extrapolate_angle(me, dt)) => Math.sin(angle)
+  me.extrapolate_cx = (me, dt, angle = Common.extrapolate_angle(me, dt)) => -Math.sin(angle) * 0.66
+  me.extrapolate_cy = (me, dt, angle = Common.extrapolate_angle(me, dt)) => Math.cos(angle) * 0.66
+	me.sqDistance = function(me, x, y) {
+		return Math.pow(x-me.x, 2) + Math.pow(y-me.y, 2);
+	};
+	me.cubeDistance = function(me, x, y, z) {
+		return Math.pow(x-me.x, 2) + Math.pow(y-me.y, 2) + Math.pow(z-me.z, 2);
+	};
+  me.collidingWith = (me, _with) => Common.sqDistance(me, _with.x, _with.y) < me.sqRadius + _with.sqRadius
+  me.collidingWith3d = (me, _with) => Common.cubeDistance(me, _with.x, _with.y, _with.z) < me.cubeRadius + _with.cubeRadius
+  Object.seal(me)
+  return me
+}();
+
+var Obj = function(name, x, y, z, texture) {
 	var me = {
 		name : name,
 		x : x,
 		y : y,
-		size : size, // 0..1 (for a 256x256 wall texture)
-		texture : texture
+    z : z,
+		sprite : texture
 	};
 
-	me.sqDistance = function(x, y) {
-		return Math.pow(x-me.x, 2) + Math.pow(y-me.y, 2);
-	};
+  me.update = () => null
 
 	return me;
 };
@@ -271,12 +427,17 @@ var Objects = function() {
 		}
 	};
 
-	me.add = function(name, x, y, size, texture) {
-		me.objs[me.objs.length] = Obj(name, x, y, size, texture);
+	me.add = function(name, x, y, z, texture) {
+		me.objs[me.objs.length] = Obj(name, x, y, z, texture);
 	};
 
-	me.remove = function(index) {
-		delete me.objs[index];
+	me.remove = function(object) {
+    var idx = me.objs.indexOf(object)
+    if (idx === -1) {
+      throw new Error('could not find object to remove')
+    }
+		me.objs.splice(idx, 1)
+    _sortedCacheKey = NaN
 	};
 
   var _sortedCache = []
@@ -294,7 +455,7 @@ var Objects = function() {
     }
     for (var i = 0; i < me.objs.length; i++) {
       _sortedCache[i].obj = me.objs[i]
-      _sortedCache[i].sqDist = me.objs[i].sqDistance(x, y)
+      _sortedCache[i].sqDist = Common.sqDistance(me.objs[i], x, y)
     }
     if (_sortedCache.length) {
       _sortedCache.sort((a, b) => b.sqDist - a.sqDist);
@@ -380,6 +541,24 @@ var Map = function() {
 		return me.data[y*me.width + x] == -1;
 	};
 
+  me.contains_sprite = function (x, y, n, self) {
+    n = n || 0
+    self = self || NaN
+    // temporary dumb function
+    for (var i = 0; i < me.objs.objs.length; i++) {
+      if (
+        Math.floor(me.objs.objs[i].x) === x &&
+        Math.floor(me.objs.objs[i].y) === y &&
+        me.objs.objs[i] !== self
+      ) {
+        n--;
+        if (n < 0) {
+          return me.objs.objs[i];
+        }
+      }
+    }
+  }
+
 	me.init();
 
 	return me;
@@ -437,6 +616,11 @@ var Application = function(id) {
 		return false;
 	};
 
+  me.add_explosion = (ex) => {
+    explosions.push(ex)
+    ex._squareId = Math.floor(ex.y) * me.map.width + Math.floor(ex.x)
+  }
+
   me.draw_floor_ceiling_gradient = function () {
     me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
   }
@@ -447,6 +631,7 @@ var Application = function(id) {
   var textureBuffer = [];
   var mapSquareIDBuffer = [];
   var isFlippedBuffer = [];
+  var explosions = [];
   var zBufferPassCacheKey = ''
 
   const mod = (a, n) => a - Math.floor(a/n) * n
@@ -456,13 +641,15 @@ var Application = function(id) {
     me.draw_floor_ceiling_gradient();
 
 		var col
-    var player_angle = me.player.extrapolate_angle(dt)
-    var player_x = me.player.extrapolate_x(dt)
-    var player_y = me.player.extrapolate_y(dt)
-    var player_dx = me.player.extrapolate_dx(dt, player_angle)
-    var player_dy = me.player.extrapolate_dy(dt, player_angle)
-    var player_cx = me.player.extrapolate_cx(dt, player_angle)
-    var player_cy = me.player.extrapolate_cy(dt, player_angle)
+    var player_angle = Common.extrapolate_angle(me.player, dt)
+    var player_x = Common.extrapolate_x(me.player, dt)
+    var player_y = Common.extrapolate_y(me.player, dt)
+    var player_dx = Common.extrapolate_dx(me.player, dt, player_angle)
+    var player_dy = Common.extrapolate_dy(me.player, dt, player_angle)
+    var player_cx = Common.extrapolate_cx(me.player, dt, player_angle)
+    var player_cy = Common.extrapolate_cy(me.player, dt, player_angle)
+
+    var Date_now = Date.now()
 
     var camera, ray_x, ray_y, ray_dx, ray_dy, mx, my, delta_x,
       delta_y, step_x, step_y, horiz, wall_dist, wall_height,
@@ -576,7 +763,8 @@ var Application = function(id) {
         wall_dist < 1 && width < 10 ||
         wall_dist > 2 && width < 5 ||
         wall_dist > 2 && angle_d < 0.3 && width < 100 ||
-        wall_dist > 2 && angle_d < 0.4 && width < 40
+        wall_dist > 2 && angle_d < 0.4 && width < 40 ||
+        wall_dist > 7 && angle_d < 1
       ) &&
         mapSquareIDBuffer[col + width + xInc] === map_square_id &&
         normalBuffer[col + width + xInc] === initial_wall_normal
@@ -630,6 +818,94 @@ var Application = function(id) {
       }
     }
 
+    for (i = 0; i < explosions.length; i++) {
+      var explosion = false
+      xInc = originalXInc * 5
+      var halfXInc = xInc / 2
+      var row1Start = explosions[i]._squareId - me.map.width - 3
+      var row1End = explosions[i]._squareId - me.map.width + 3
+      var row2Start = explosions[i]._squareId - 3
+      var row2End = explosions[i]._squareId + 3
+      var row3Start = explosions[i]._squareId + me.map.width - 3
+      var row3End = explosions[i]._squareId + me.map.width + 3
+      for (col = 0; col < me._width; col += xInc) {
+        if (
+          (row1Start < mapSquareIDBuffer[col] && mapSquareIDBuffer[col] < row1End) ||
+          (row2Start < mapSquareIDBuffer[col] && mapSquareIDBuffer[col] < row2End) ||
+          (row3Start < mapSquareIDBuffer[col] && mapSquareIDBuffer[col] < row3End)
+        ) {
+          if (!explosion) {
+            explosion = true
+            me.ctx.fillStyle = 'rgba(255, 255, 200, 0.6)'
+          }
+          if (Date_now - explosions[i].animation_start < 800) {
+            var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
+            var draw_start = (-wall_height/2 + me._height/2)|0;
+            while (Math.abs(zBuffer[col + width] - zBuffer[col]) < 0.05) { width += xInc }
+            me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
+          }
+        }
+      }
+
+      if (explosion) {
+        var explosion_x = explosions[i].x - player_x;
+        var explosion_y = explosions[i].y - player_y;
+        var explosion_z = explosions[i].z
+
+        inv = 1.0 / (player_cx*player_dy - player_dx*player_cy);
+        trans_x = inv * (player_dy*explosion_x - player_dx*explosion_y);
+        trans_y = inv * (-player_cy*explosion_x + player_cx*explosion_y);
+        screen_x = Math.floor((me._width/2) * (1 + trans_x/trans_y));
+
+        if (trans_y < 0) { continue; /* Behind the screen */ }
+
+        var sqDist = Common.sqDistance(explosions[i], player_x, player_y)
+        if (sqDist < 0) { continue; }
+        var dist = Math.sqrt(sqDist)
+        var ceiling_height = Math.abs(me._height / dist)
+        var sprite_width = ceiling_height
+
+        //me.ctx.fillStyle = 'red'
+        var scale = 3
+        if (dist < 4) {
+          scale *= 2
+        }
+        scale *= ceiling_height
+        var start_y = Math.floor(-scale/2 + me._height/2 +
+          (ceiling_height * explosions[i].sprite.ingame_displacement_y) -
+          (ceiling_height * Common.extrapolate_z(explosions[i], dt)))
+
+        var libido = .9 - (Date_now - explosions[i].animation_start) / 1000
+        libido = Math.floor(libido * 8) / 8
+
+        if (libido > 0) {
+          scale *= 1 / (libido + 0.5)
+          if (libido <= 0.5) {
+            scale *= 1.15
+          }
+          if (libido <= 0.25) {
+            scale *= 1.35
+          }
+          me.ctx.fillStyle = 'rgba(255, 255, 255, ' + Math.min(1, libido * 2) + ')'
+          me.ctx.fillRect(
+            screen_x - (scale / 2), start_y - (explosion_z > 0.5 ? 0 : scale / 4),
+            scale, scale)
+          me.ctx.fillRect(
+            screen_x - (scale / 4), start_y + scale / 4,
+            scale / 2, scale / 2)
+        }
+      } else if (Date_now - explosions[explosions.length - 1].animation_start < 150) {
+        var dist = 1 - (Common.sqDistance(explosions[explosions.length - 1], me.player.x, me.player.y) / 40)
+        if (dist > 0) {
+          me.ctx.fillStyle = 'rgba(255, 255, 200, '+Math.min(0.05, dist)+')'
+          me.ctx.fillRect(
+            0, 0,
+            me.width, me.height
+          )
+        }
+      }
+    }
+
 		// sprites (Objects)
 		var i, col, sprite_x, sprite_y, inv, trans_x, trans_y, screen_x,
 			sprite_width, start_x, start_y, tex, tex_x;
@@ -637,8 +913,8 @@ var Application = function(id) {
 		var sprites = me.map.objs.sorted(player_x, player_y);
     xInc = originalXInc
 		for(i=0; i<sprites.length; i++) {
-			sprite_x = sprites[i].obj.extrapolate_x(dt) - player_x;
-			sprite_y = sprites[i].obj.extrapolate_y(dt) - player_y;
+			sprite_x = Common.extrapolate_x(sprites[i].obj, dt) - player_x;
+			sprite_y = Common.extrapolate_y(sprites[i].obj, dt) - player_y;
 
 			inv = 1.0 / (player_cx*player_dy - player_dx*player_cy);
 			trans_x = inv * (player_dy*sprite_x - player_dx*sprite_y);
@@ -647,7 +923,7 @@ var Application = function(id) {
 
       if (trans_y < 0) { continue; /* Behind the screen */ }
 
-      var sqDist = sprites[i].obj.sqDistance(player_x, player_y)
+      var sqDist = Common.sqDistance(sprites[i].obj, player_x, player_y)
       if (sqDist < 0) { continue; }
       var dist = Math.sqrt(sqDist)
       var ceiling_height = Math.abs(me._height / dist)
@@ -665,21 +941,36 @@ var Application = function(id) {
         start_x = 0;
       }
       var start_y = Math.floor(-(ceiling_height * sprites[i].obj.sprite.ingame_height)/2 + me._height/2 +
-        (ceiling_height * sprites[i].obj.sprite.ingame_displacement_y))
+        (ceiling_height * sprites[i].obj.sprite.ingame_displacement_y) -
+        (ceiling_height * Common.extrapolate_z(sprites[i].obj, dt)))
 			var end_x = Math.floor((sprite_width * sprites[i].obj.sprite.ingame_width)/2 + screen_x);
       if (end_x > me._width) {
         end_x = me._width - xInc
       }
       end_x = Math.floor(end_x / xInc) * xInc
 
+      dist -= .5  // sometimes things are about to leave the z-buffer but they belong on screen
       if (zBuffer[start_x] < dist && zBuffer[end_x] < dist) {
         continue
+      }
+
+      var sprite = sprites[i].obj.sprite
+
+      if (sprite.animation) {
+        var frameIdx = Math.floor(
+          ((Date_now - sprites[i].obj.animation_start) * 0.001) *
+            sprite.animation.fps)
+
+        if (frameIdx >= sprite.animation.frames.length) {
+          frameIdx = sprite.animation.frames.length - 1
+        }
+        sprite = sprite.animation.frames[frameIdx]
       }
 
       if (zBuffer[start_x] > dist && zBuffer[end_x] > dist) {
         // Draw entire sprite, no need to draw per-column
         me.ctx.drawImage(
-          sprites[i].obj.sprite,
+          sprite,
 
           0, 0,
           sprites[i].obj.sprite.width, sprites[i].obj.sprite.height,
@@ -697,7 +988,7 @@ var Application = function(id) {
         var tex_chunk_width = sprites[i].obj.sprite.width / (ceiling_height * sprites[i].obj.sprite.ingame_width)
         var tex_x = Math.floor((col - start_x) * tex_chunk_width)
         me.ctx.drawImage(
-          sprites[i].obj.sprite,
+          sprite,
 
           Math.floor((tex_start_x * sprites[i].obj.sprite.width) + tex_x),
           0,
@@ -728,7 +1019,7 @@ var Application = function(id) {
 		}
 	};
 
-  me.draw_weapon_plane = function ()  {
+  me.draw_foreground = function ()  {
     
   };
 
@@ -751,9 +1042,10 @@ var Application = function(id) {
 
     now = Date.now()
     if ((now - lastDraw) >= thirtyFPS) {
+      // This means that we're letting it refresh at 25 or 30, whatever floats its boat
       lastDraw = now
       me.draw(toGo);
-      me.draw_weapon_plane();
+      me.draw_foreground(toGo);
 		}
 	};
 
@@ -786,6 +1078,12 @@ var Application = function(id) {
     me.player.update(me.map, dt);
     for (var i = 0; i < me.map.objs.objs.length; i++) {
       me.map.objs.objs[i].update(me.map, dt)
+    }
+    for (var i = 0; i < explosions.length; i++) {
+      if (me.map.objs.objs.indexOf(explosions[i]) === -1) {
+        explosions.splice(i, 1)
+        i--
+      }
     }
   }
 
