@@ -131,7 +131,7 @@ var Player = function(x, y, isenemy) {
     own_grenade_y: 0,
 
     fire_last: 0,
-    fire_speed: 400,
+    fire_speed: 200,
     fire_cooldown: 1000,
   };
   me.sqRadius = me.radius * me.radius
@@ -248,8 +248,8 @@ var Player = function(x, y, isenemy) {
         nade.incr_y = Math.sin(nade_angle) * nade.speed
         nade.incr_x += me.incr_x
         nade.incr_y += me.incr_y
-        nade.incr_z = ((me.own_grenade_y - 0.5) * 2) * -1
-        if (nade.incr_z > 0.8) nade.incr_z = 0.8
+        nade.incr_z = me.own_grenade_y < 0.2 ? 0.6 :
+          me.own_grenade_y > 0.7 ? -1 : 0.4
         nade.incr_z *= nade.speed
         app.map.objs.objs.push(nade)
       }
@@ -379,11 +379,20 @@ var Grenade = function(x, y, isenemy) {
     }
     if (!map.is_free(Math.floor(me.x), Math.floor(me.y))) {
       // bounce back
-      if (Math.floor(me.x - me.incr_x) !== Math.floor(me.x)) {
+      var bounce_back_x = Math.floor(me.x - me.incr_x) !== Math.floor(me.x)
+      var bounce_back_y = Math.floor(me.y - me.incr_y) !== Math.floor(me.y)
+      if (bounce_back_x && bounce_back_y) {
+        if (!map.is_free(Math.floor(me.x - me.incr_x), me.y)) {
+          bounce_back_x = false
+        } else if (!map.is_free(me.x, Math.floor(me.y - me.incr_y))) {
+          bounce_back_y = false
+        }
+      }
+      if (bounce_back_x) {
         me.x -= me.incr_x
         me.incr_x = -me.incr_x * me.wall_bounciness
       }
-      if (Math.floor(me.y - me.incr_y) !== Math.floor(me.y)) {
+      if (bounce_back_y) {
         me.y -= me.incr_y
         me.incr_y = -me.incr_y * me.wall_bounciness
       }
