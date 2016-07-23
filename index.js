@@ -15,7 +15,8 @@ wss.on('connection', ws => {
   events.on('move', (moveData) => { ws.send(moveData, () => {}) })
 })
 
-server.listen(8080).on('listening', function () {
-  console.log('server listening on port 8080')
+var port = +process.env['PORT'] || 8080
+server.listen(port).on('listening', function () {
+  console.log('server listening on port ' + port)
 })
 
