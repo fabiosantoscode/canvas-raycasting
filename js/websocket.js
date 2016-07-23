@@ -1,7 +1,7 @@
 'use strict'
 
 window.addEventListener('load', () => {
-  var sock = new WebSocket('ws://' + location.hostname + ':3003/')
+  var sock = new WebSocket('ws://' + location.host + '/')
 
   var myId = Math.random()
 
@@ -12,11 +12,16 @@ window.addEventListener('load', () => {
       // It's me, I know
       return
     }
-    var player = app.map.objs.objs.find(o => o.id === data.id)
-    if (!player) {
-      app.map.objs.objs.push((player = Player(0, 0, 'is-enemy=true')))
+    if (data.type === 'player') {
+      var Klass = Player
+    } else if (data.type === 'grenade') {
+      var Klass = Grenade
     }
-    player.load(data)
+    var entity = app.map.objs.objs.find(o => o.id === data.id)
+    if (!entity) {
+      app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))
+    }
+    entity.load(data)
   })
 
   var _lastSend = Date.now()
