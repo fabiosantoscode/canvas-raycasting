@@ -1,5 +1,7 @@
 FROM alpine
 
+EXPOSE 8080
+
 WORKDIR /code
 
 ENV NODE_ENV=production
