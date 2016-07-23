@@ -28,6 +28,7 @@ var Textures = (function() {
         ingame_width: .25,
         ingame_displacement_x: 0,
         ingame_displacement_y: .5,
+        onscreen_width: .25,
       },
       {
         src: 'img/explosion-1.png',
@@ -38,13 +39,31 @@ var Textures = (function() {
         animation: {
           fps: 8,
           frames: [ 1, 2, 3, 4 ].map(n => 'img/explosion-'+n+'.png'),
-          repeat: false,
+          linger: true,
         }
-      }
+      },
+      {
+        src: 'img/racket.png',
+        onscreen_width: .50,
+        ingame_displacement_y: .26,
+        animation: {
+          fps: 8,
+          frames: [ 1, 2, 3 ].map(n => 'img/racket-'+n+'.png'),
+          linger: false,
+        }
+      },
     ];
 
   var me = {
     textures: [],
+    get_animation_frame: function (texture, ms) {
+      var frameIdx = Math.floor((ms * 0.001) * texture.animation.fps)
+      if (
+        texture.animation.linger &&
+        frameIdx >= texture.animation.frames.length
+      ) { frameIdx = texture.animation.frames.length - 1 }
+      return texture.animation.frames[frameIdx]
+    }
   }
 
   for(i=0; i<files.length; i++) {
@@ -68,6 +87,8 @@ var Textures = (function() {
       me.textures[i].ingame_width = files[i].ingame_width
       me.textures[i].ingame_displacement_x = files[i].ingame_displacement_x
       me.textures[i].ingame_displacement_y = files[i].ingame_displacement_y
+      me.textures[i].onscreen_width = files[i].onscreen_width
+      me.textures[i].onscreen_height = files[i].onscreen_height
       me.textures[i].index = i
       if (files[i].flipped) {
         var flipped = document.createElement('canvas')
@@ -104,6 +125,14 @@ var Player = function(x, y, isenemy) {
 
     sprite : Textures.textures[0],
     radius : 1,
+
+    shooting_state: 'idle',
+    own_grenade_x: 0,
+    own_grenade_y: 0,
+
+    fire_last: 0,
+    fire_speed: 400,
+    fire_cooldown: 1000,
   };
   me.sqRadius = me.radius * me.radius
   me.cubeRadius = me.radius * me.radius * me.radius
@@ -208,12 +237,40 @@ var Player = function(x, y, isenemy) {
       me.incr_angle += me.rotspeed * dt * right
     }
 
+    if (me.shooting_state === 'firing') {
+      if (Date.now() - me.fire_last >= me.fire_speed) {
+        me.shooting_state = 'fired'
+        var nade = Grenade(me.x, me.y)
+        nade.z = 0.5
+        var nade_x_minus_one_to_one = (me.own_grenade_x - 0.5) * 2
+        var nade_angle = me.angle + (nade_x_minus_one_to_one * 0.66)
+        nade.incr_x = Math.cos(nade_angle) * nade.speed
+        nade.incr_y = Math.sin(nade_angle) * nade.speed
+        nade.incr_x += me.incr_x
+        nade.incr_y += me.incr_y
+        nade.incr_z = ((me.own_grenade_y - 0.5) * 2) * -1
+        if (nade.incr_z > 0.8) nade.incr_z = 0.8
+        nade.incr_z *= nade.speed
+        app.map.objs.objs.push(nade)
+      }
+    }
+
+    if (me.shooting_state === 'fired') {
+      if (Date.now() - me.fire_last >= me.fire_cooldown) {
+        me.shooting_state = 'idle'
+      }
+    }
+
     if (
       me.incr_x !== prev_incr_x || me.incr_y !== prev_incr_y ||
       me.angle !== prev_angle
     ) {
       window.sendMove(me)
     }
+  }
+
+  me.fire_grenade = function (release_start) {
+    me.fire_last = release_start
   }
 
 	me.key_down = function(event) {
@@ -261,8 +318,8 @@ var Player = function(x, y, isenemy) {
 
 var Grenade = function(x, y, isenemy) {
   var me = {
-    x: x + 0.5,
-    y: y + 0.5,
+    x: x,
+    y: y,
     z: 1,
     incr_x: 0,
     incr_y: 0,
@@ -564,16 +621,132 @@ var Map = function() {
 	return me;
 };
 
-var Application = function(id) {
+var Foreground = function(player, canvas_element) {
+  var me = {}
+
+  var widthOfTheJoystickContainer = 0.6
+  var grenadeSprite = Textures.textures[3]
+  var racketSprite = Textures.textures[5]
+
+  document.documentElement.addEventListener('touchstart', onTouchStart)
+  document.documentElement.addEventListener('mousedown', onTouchStart)
+  document.documentElement.addEventListener('touchmove', onTouchMove)
+  document.documentElement.addEventListener('mousemove', onTouchMove)
+  document.documentElement.addEventListener('touchend', onTouchEnd)
+  document.documentElement.addEventListener('mouseup', onTouchEnd)
+
+  var touchIdx = null
+  var findTouch = (e) => {
+    if (e.type[0] === 'm' /* mouse### event */) { return e }
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchIdx) {
+        return e.changedTouches[i]
+      }
+    }
+  }
+  Object.defineProperty(window, 'touchIdx', { get: ()=> touchIdx})
+  function onTouchStart (e) {
+    var touch = e.type === 'touchstart' ? e.changedTouches[0] : e
+    if (touchIdx !== null ||
+        player.shooting_state !== 'idle' ||
+        touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
+      return
+    }
+    touchIdx = touch.identifier === undefined ? 'mouse' : touch.identifier
+    player.shooting_state = 'dragging'
+    moveGrenade(touch)
+    e.preventDefault()
+  }
+
+  function onTouchMove (e) {
+    if (touchIdx === null || player.shooting_state !== 'dragging') {
+      return
+    }
+    var touch = findTouch(e)
+    if (touch === undefined) { return }
+    moveGrenade(touch)
+    console.log(player.own_grenade_x, player.own_grenade_y)
+  }
+
+  function onTouchEnd (e) {
+    if (touchIdx === null) {
+      return
+    }
+
+    var touch = findTouch(e)
+    if (touch === undefined) { return }
+
+    releaseGrenade()
+
+    touchIdx = null
+  }
+
+  function moveGrenade (touch) {
+    player.shooting_state = 'dragging'
+    var rect = canvas_element.getBoundingClientRect()
+    player.own_grenade_x = ((touch.clientX) - rect.left) /
+      rect.width
+    player.own_grenade_y = ((touch.clientY) - rect.top) /
+      rect.height
+  }
+
+  var release_start = null
+  function releaseGrenade () {
+    player.shooting_state = 'firing'
+    release_start = Date.now()
+    player.fire_grenade(release_start)
+  }
+
+  me.draw = function (ctx, dt) {
+    var grenade_x = player.own_grenade_x * canvas_element.width
+    var grenade_y = player.own_grenade_y * canvas_element.height
+    if (player.shooting_state === 'idle' || player.shooting_state === 'dragging') {
+      var size = app._width * grenadeSprite.onscreen_width
+      var halfSize = size >> 1
+      var x = player.shooting_state === 'dragging' ? grenade_x - halfSize : canvas_element.width - size
+      var y = player.shooting_state === 'dragging' ? grenade_y - halfSize : canvas_element.height - size
+      ctx.drawImage(grenadeSprite,
+                    0, 0,
+                    grenadeSprite.width, grenadeSprite.height,
+                    x, y,
+                    size, size)
+    } else if (player.shooting_state === 'firing') {
+      var size = app._width * grenadeSprite.onscreen_width
+      var halfSize = size >> 1
+      ctx.drawImage(grenadeSprite,
+                    0, 0,
+                    grenadeSprite.width, grenadeSprite.height,
+                    grenade_x - halfSize, grenade_y - halfSize,
+                    size, size)
+      var size = app._width * racketSprite.onscreen_width
+      var halfSize = size >> 1
+      var y = grenade_y - halfSize + ( size * racketSprite.ingame_displacement_y )
+      var animationFrame = Textures.get_animation_frame(racketSprite, Date.now() - release_start)
+      if (animationFrame) {
+        ctx.drawImage(animationFrame,
+                      0, 0,
+                      racketSprite.width, racketSprite.height,
+                      grenade_x - halfSize, y|0,
+                      size, size)
+      }
+    }
+  };
+
+  return me
+}
+
+var Application = function(canvasID) {
   var defaultWidth = 512
   var defaultHeight = 307
+  var player = Player(1, 1)
+  var canvas = document.getElementById(canvasID);
 	var me = {
-		id : id,
-		canvas : undefined,
-		ctx : undefined,
+		canvas : canvas,
+		ctx : canvas.getContext('2d'),
 
 		map : Map(),
-		player : Player(1, 1),
+		player : player,
+    foreground: Foreground(player, canvas),
     enemies: [],
 
 		// canvas size
@@ -594,7 +767,6 @@ var Application = function(id) {
 	me.setup = function({ shadows, resolution } = {}) {
     if (shadows === undefined) shadows = me.shadows
     if (resolution === undefined) resolution = me.resolution
-		me.canvas = document.getElementById(me.id);
 
     me.shadows = shadows
     me.width = defaultWidth * resolution
@@ -602,18 +774,13 @@ var Application = function(id) {
     me._width = defaultWidth * resolution
     me._height = defaultHeight * resolution
 
-		if(me.canvas.getContext) {
-			me.canvas.width = me._width;
-			me.canvas.height = me._height;
-			me.canvas.style.background = "rgb(0, 0, 0)";
+    me.canvas.width = me._width;
+    me.canvas.height = me._height;
+    me.canvas.style.background = "rgb(0, 0, 0)";
 
-			me.ctx = me.canvas.getContext("2d");
-      me.ctx.webkitImageSmoothingEnabled = me.ctx.imageSmoothingEnabled = me.ctx.mozImageSmoothingEnabled = me.ctx.oImageSmoothingEnabled = false;
+    me.ctx.webkitImageSmoothingEnabled = me.ctx.imageSmoothingEnabled = me.ctx.mozImageSmoothingEnabled = me.ctx.oImageSmoothingEnabled = false;
 
-			return true;
-		}
     zBufferPassCacheKey = ''  // clear z-buffer cache
-		return false;
 	};
 
   me.add_explosion = (ex) => {
@@ -957,14 +1124,7 @@ var Application = function(id) {
       var sprite = sprites[i].obj.sprite
 
       if (sprite.animation) {
-        var frameIdx = Math.floor(
-          ((Date_now - sprites[i].obj.animation_start) * 0.001) *
-            sprite.animation.fps)
-
-        if (frameIdx >= sprite.animation.frames.length) {
-          frameIdx = sprite.animation.frames.length - 1
-        }
-        sprite = sprite.animation.frames[frameIdx]
+        sprite = Textures.get_animation_frame(sprite, Date_now - sprites[i].obj.animation_start)
       }
 
       if (zBuffer[start_x] > dist && zBuffer[end_x] > dist) {
@@ -1019,10 +1179,6 @@ var Application = function(id) {
 		}
 	};
 
-  me.draw_foreground = function ()  {
-    
-  };
-
   var lastDraw = Date.now()
   var thirtyFPS = Math.floor(1000 / 31)
   var lastUpdate = Date.now()
@@ -1045,14 +1201,13 @@ var Application = function(id) {
       // This means that we're letting it refresh at 25 or 30, whatever floats its boat
       lastDraw = now
       me.draw(toGo);
-      me.draw_foreground(toGo);
+      me.foreground.draw(me.ctx, toGo);
 		}
 	};
 
 	me.run = function() {
-		if(me.setup(Settings)) {
-			me.loop();
-		}
+    me.setup(Settings)
+    me.loop();
 	};
 
 	me.key_down = function(event) {
