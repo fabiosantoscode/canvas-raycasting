@@ -18,4 +18,4 @@ RUN npm install && \
 
 COPY . /code
 
-CMD node .
+CMD [ "node", "." ]
