@@ -109,10 +109,12 @@ var Player = function(x, y, isenemy) {
     // position
     x : x+0.5,
     y : y+0.5, // center in the tile
+    z : 0,
     angle: 0,
     // the rate at which X and Y are being changed this frame
     incr_x: 0,
     incr_y: 0,
+    incr_z: 0,
     incr_angle: 0,
 
     speed: 2,

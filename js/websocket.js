@@ -12,14 +12,9 @@ window.addEventListener('load', () => {
       // It's me, I know
       return
     }
-    if (data.type === 'player') {
-      var Klass = Player
-    } else if (data.type === 'grenade') {
-      var Klass = Grenade
-    }
     var entity = app.map.objs.objs.find(o => o.id === data.id)
     if (!entity) {
-      app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))
+      app.map.objs.objs.push((entity = Player(0, 0, 'is-enemy=true')))
     }
     entity.load(data)
   })
