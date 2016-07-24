@@ -536,8 +536,6 @@ var Objects = function() {
 		return me.textures[idx];
 	};
 
-	me.init();
-
   me.objs.push(Player(5, 1, 'isenemy'))
 
   var tempData = {"id":0.5219182117326571,"x":5.034241173117036,"y":1.6772855328758354,"incr_x":0.01,"incr_y":0.01,"speed":2,"rotspeed":0.1,"up":false,"down":false,"right":false,"left":false}
@@ -1266,20 +1264,6 @@ var Application = function(canvasID) {
           Math.floor(ceiling_height * sprites[i].obj.sprite.ingame_height)
         )
       }
-		}
-  }
-
-		// FPS
-		var time = Date.now();
-
-		me._frames++;
-
-		me.ctx.fillStyle = "rgb(255, 0, 0)";
-		me.ctx.fillText("FPS: " + Math.round(me._frames*1000 / (time-me._time)), 1, me.height-5);
-
-		if(time > me._time + me.fps*1000) {
-			me._time = time;
-			me._frames = 0;
 		}
 	};
 
