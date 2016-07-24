@@ -438,7 +438,7 @@ var Explosion = function (x, y, z) {
     sprite: Textures.textures[4],
     radius: 0.3,
     time_left: 1,
-    animation_start: Date.now(),
+    animation_start: app.latest_animation_timestamp,
   }
 
   me.sqRadius = me.radius * me.radius
@@ -850,6 +850,7 @@ var Application = function(canvasID) {
 		_frames : 0,
     shadows: true,
     resolution: 1,
+    latest_animation_timestamp: 0,  // Because the time an explosion starts is not Date.now(), it's the RAF thing
 	};
 
 	me.setup = function({ shadows, resolution } = {}) {
@@ -1263,37 +1264,40 @@ var Application = function(canvasID) {
         )
       }
 		}
-	};
+	}
 
-  var lastDraw = Date.now()
-  var thirtyFPS = Math.floor(1000 / 31)
-  var lastUpdate = Date.now()
+  var lastUpdate = null
+  var thirtyFPS = Math.floor(1000 / 24)
+  var FPSthInMilliseconds = 1000 / 30
   var TPS = 12
   var TPSth = 1/TPS
   var TPSthInMilliseconds = (1000 / TPS)
-	me.loop = function() {
+	me.loop = function(timeStamp) {
 		requestAnimationFrame(me.loop);
 
-    var now = Date.now()
-
-    var toGo
-    while ((toGo = (now - lastUpdate) / TPSthInMilliseconds) > 1) {
-		  me.update(TPSth)
-      lastUpdate = now
+    if (lastUpdate === null) {
+      lastUpdate = timeStamp;
+      me.latest_animation_timestamp = timeStamp;
+      return
     }
 
-    now = Date.now()
-    if ((now - lastDraw) >= thirtyFPS) {
+    var toGo
+    while ((toGo = (timeStamp - lastUpdate) / TPSthInMilliseconds) > 1) {
+		  me.update(TPSth)
+      lastUpdate = timeStamp
+    }
+
+    if ((timeStamp - me.latest_animation_timestamp) > FPSthInMilliseconds*.5) {
       // This means that we're letting it refresh at 25 or 30, whatever floats its boat
-      lastDraw = now
-      me.draw(toGo, now);
+      me.latest_animation_timestamp = timeStamp
+      me.draw(toGo, timeStamp);
       me.foreground.draw(me.ctx, toGo);
 		}
 	};
 
 	me.run = function() {
     me.setup(Settings)
-    me.loop();
+    me.loop(0)
 	};
 
 	me.key_down = function(event) {
