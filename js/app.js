@@ -208,8 +208,8 @@ var Player = function(x, y, isenemy) {
     var change_x = Common.extrapolate_dx(me, 1) * me.speed * dt;
     var change_y = Common.extrapolate_dy(me, 1) * me.speed * dt;
 
-    var joystickX = Math.min(Math.max(-1, joystick.deltaX() / 80), 1)
-    var joystickY = Math.min(Math.max(-1, joystick.deltaY() / 80), 1)
+    var joystickX = Math.min(Math.max(-1, joystick.deltaX() / 40), 1)
+    var joystickY = Math.min(Math.max(-1, joystick.deltaY() / 40), 1)
 
     var up = me.up || (joystickY < 0 && -joystickY)
     var down = me.down || (joystickY > 0 && joystickY)
@@ -657,19 +657,23 @@ var Foreground = function(player, canvas_element) {
   Object.defineProperty(window, 'touchIdx', { get: ()=> touchIdx})
   function onTouchStart (e) {
     var touch = e.type === 'touchstart' ? e.changedTouches[0] : e
-    if (touchIdx !== null ||
-        player.fire_state !== 'idle' ||
-        touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
+    if (touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
+      return
+    }
+    if (touchIdx !== null || player.fire_state !== 'idle' && player.fire_state !== 'fired' && player.fire_state !== 'firing') {
       return
     }
     touchIdx = touch.identifier === undefined ? 'mouse' : touch.identifier
-    player.fire_state = 'dragging'
-    moveGrenade(touch)
     e.preventDefault()
+    moveGrenade(touch)
+    if (player.fire_state === 'fired' || player.fire_state === 'firing') {
+      return
+    }
+    player.fire_state = 'dragging'
   }
 
   function onTouchMove (e) {
-    if (touchIdx === null || player.fire_state !== 'dragging') {
+    if (touchIdx === null) {
       return
     }
     var touch = findTouch(e)
@@ -685,13 +689,14 @@ var Foreground = function(player, canvas_element) {
     var touch = findTouch(e)
     if (touch === undefined) { return }
 
-    releaseGrenade()
+    if (player.fire_state === 'dragging') {
+      releaseGrenade()
+    }
 
     touchIdx = null
   }
 
   function moveGrenade (touch) {
-    player.fire_state = 'dragging'
     player.own_grenade_x = ((touch.clientX) - canvas_element.offsetLeft) /
       canvas_element.offsetWidth
     player.own_grenade_y = ((touch.clientY) - canvas_element.offsetTop) /
