@@ -136,10 +136,10 @@ var Player = function(x, y, isenemy) {
     sprite : Textures.textures[0],
     radius : 1,
 
-    shooting_state: 'idle',
     own_grenade_x: 0,
     own_grenade_y: 0,
 
+    fire_state: 'idle',
     fire_last: 0,
     fire_speed: 200,
     fire_cooldown: 1000,
@@ -247,9 +247,9 @@ var Player = function(x, y, isenemy) {
       me.incr_angle += me.rotspeed * dt * right
     }
 
-    if (me.shooting_state === 'firing') {
+    if (me.fire_state === 'firing') {
       if (Date.now() - me.fire_last >= me.fire_speed) {
-        me.shooting_state = 'fired'
+        me.fire_state = 'fired'
         var nade = Grenade(me.x, me.y)
         nade.z = 0.5
         var nade_x_minus_one_to_one = (me.own_grenade_x - 0.5) * 2
@@ -265,9 +265,9 @@ var Player = function(x, y, isenemy) {
       }
     }
 
-    if (me.shooting_state === 'fired') {
+    if (me.fire_state === 'fired') {
       if (Date.now() - me.fire_last >= me.fire_cooldown) {
-        me.shooting_state = 'idle'
+        me.fire_state = 'idle'
       }
     }
 
@@ -667,18 +667,18 @@ var Foreground = function(player, canvas_element) {
   function onTouchStart (e) {
     var touch = e.type === 'touchstart' ? e.changedTouches[0] : e
     if (touchIdx !== null ||
-        player.shooting_state !== 'idle' ||
+        player.fire_state !== 'idle' ||
         touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
       return
     }
     touchIdx = touch.identifier === undefined ? 'mouse' : touch.identifier
-    player.shooting_state = 'dragging'
+    player.fire_state = 'dragging'
     moveGrenade(touch)
     e.preventDefault()
   }
 
   function onTouchMove (e) {
-    if (touchIdx === null || player.shooting_state !== 'dragging') {
+    if (touchIdx === null || player.fire_state !== 'dragging') {
       return
     }
     var touch = findTouch(e)
@@ -701,7 +701,7 @@ var Foreground = function(player, canvas_element) {
   }
 
   function moveGrenade (touch) {
-    player.shooting_state = 'dragging'
+    player.fire_state = 'dragging'
     var rect = canvas_element.getBoundingClientRect()
     player.own_grenade_x = ((touch.clientX) - rect.left) /
       rect.width
@@ -711,7 +711,7 @@ var Foreground = function(player, canvas_element) {
 
   var release_start = null
   function releaseGrenade () {
-    player.shooting_state = 'firing'
+    player.fire_state = 'firing'
     release_start = Date.now()
     player.fire_grenade(release_start)
   }
@@ -719,17 +719,17 @@ var Foreground = function(player, canvas_element) {
   me.draw = function (ctx, dt) {
     var grenade_x = player.own_grenade_x * canvas_element.width
     var grenade_y = player.own_grenade_y * canvas_element.height
-    if (player.shooting_state === 'idle' || player.shooting_state === 'dragging') {
+    if (player.fire_state === 'idle' || player.fire_state === 'dragging') {
       var size = app._width * grenadeSprite.onscreen_width
       var halfSize = size >> 1
-      var x = player.shooting_state === 'dragging' ? grenade_x - halfSize : canvas_element.width - size
-      var y = player.shooting_state === 'dragging' ? grenade_y - halfSize : canvas_element.height - size
+      var x = player.fire_state === 'dragging' ? grenade_x - halfSize : canvas_element.width - size
+      var y = player.fire_state === 'dragging' ? grenade_y - halfSize : canvas_element.height - size
       ctx.drawImage(grenadeSprite,
                     0, 0,
                     grenadeSprite.width, grenadeSprite.height,
                     x, y,
                     size, size)
-    } else if (player.shooting_state === 'firing') {
+    } else if (player.fire_state === 'firing') {
       var size = app._width * grenadeSprite.onscreen_width
       var halfSize = size >> 1
       ctx.drawImage(grenadeSprite,
