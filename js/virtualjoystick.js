@@ -36,16 +36,16 @@ var VirtualJoystick	= function(opts)
 	this._has3d	= this._check3D();
 	
 	var __bind	= function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-	this._$onTouchStart	= __bind(this._onTouchStart	, this);
-	this._$onTouchEnd	= __bind(this._onTouchEnd	, this);
-	this._$onTouchMove	= __bind(this._onTouchMove	, this);
+	this._$onTouchStart	= this._onTouchStart.bind(this);
+	this._$onTouchEnd	= this._onTouchEnd.bind(this);
+	this._$onTouchMove	= this._onTouchMove.bind(this);
 	this._container.addEventListener( 'touchstart'	, this._$onTouchStart	, false );
 	this._container.addEventListener( 'touchend'	, this._$onTouchEnd	, false );
 	this._container.addEventListener( 'touchmove'	, this._$onTouchMove	, false );
 	if( this._mouseSupport ){
-		this._$onMouseDown	= __bind(this._onMouseDown	, this);
-		this._$onMouseUp	= __bind(this._onMouseUp	, this);
-		this._$onMouseMove	= __bind(this._onMouseMove	, this);
+		this._$onMouseDown	= this._onMouseDown.bind(this);
+		this._$onMouseUp	= this._onMouseUp.bind(this);
+		this._$onMouseMove	= this._onMouseMove.bind(this);
 		this._container.addEventListener( 'mousedown'	, this._$onMouseDown	, false );
 		this._container.addEventListener( 'mouseup'	, this._$onMouseUp	, false );
 		this._container.addEventListener( 'mousemove'	, this._$onMouseMove	, false );

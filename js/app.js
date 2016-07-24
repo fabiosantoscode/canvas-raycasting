@@ -496,27 +496,14 @@ var Objects = function() {
 		objs : []
 	};
 
-	me.init = function() {
-		var ver = 1, // increase this for refreshing the cache
-			i,
-			files = [ 'img/object.png' ];
-		
-		for(i=0; i<files.length; i++) {
-			me.textures[i] = new Image();
-			me.textures[i].src = files[i] + "?" + ver;
-		}
-	};
-
-	me.add = function(name, x, y, z, texture) {
-		me.objs[me.objs.length] = Obj(name, x, y, z, texture);
-	};
-
 	me.remove = function(object) {
     var idx = me.objs.indexOf(object)
     if (idx === -1) {
       throw new Error('could not find object to remove')
     }
-		me.objs.splice(idx, 1)
+    delete me.objs[idx]
+    for (var i = idx + 1; i < me.objs.length; i++) me.objs[i - 1] = me.objs[i]
+    me.objs.length--
     _sortedCacheKey = NaN
 	};
 
@@ -705,11 +692,10 @@ var Foreground = function(player, canvas_element) {
 
   function moveGrenade (touch) {
     player.fire_state = 'dragging'
-    var rect = canvas_element.getBoundingClientRect()
-    player.own_grenade_x = ((touch.clientX) - rect.left) /
-      rect.width
-    player.own_grenade_y = ((touch.clientY) - rect.top) /
-      rect.height
+    player.own_grenade_x = ((touch.clientX) - canvas_element.offsetLeft) /
+      canvas_element.offsetWidth
+    player.own_grenade_y = ((touch.clientY) - canvas_element.offsetTop) /
+      canvas_element.offsetHeight
   }
 
   var release_start = null
@@ -961,6 +947,7 @@ var Application = function(canvasID) {
       while ((angle_d = angle_distance(normalBuffer[col + width - xInc], player_behind_angle)), (
         width < 3 ||
         angle_d < 0.1 ||
+        wall_dist < 2 && angle_d < 0.35 && width < 40 ||
         wall_dist < 1 && width < 10 ||
         wall_dist > 2 && width < 5 ||
         wall_dist > 2 && angle_d < 0.3 && width < 100 ||
@@ -975,7 +962,7 @@ var Application = function(canvasID) {
         wall_dist = zBuffer[col + width + xInc]
         end_wall_x = wallXBuffer[col + width]
       }
-      var use_width = width
+      var use_width = width + xInc
       var use_tex = tex
       var use_col = col
       var use_tex
@@ -992,7 +979,11 @@ var Application = function(canvasID) {
         use_col, draw_start,
         use_width, wall_height
       );
-      col += width - xInc
+      if (width > 3) {
+        col += width
+      } else {
+        col += width - xInc
+      }
 		}
 
     // Shadows
@@ -1012,7 +1003,7 @@ var Application = function(canvasID) {
           var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
           var draw_start = (-wall_height/2 + me._height/2)|0;
           var width = xInc;
-          while (Math.abs(zBuffer[col + width] - zBuffer[col]) < 0.05) { width += xInc }
+          while (Math.abs(zBuffer[col + width] - zBuffer[col]) < (tint > 0.5 ? 0.05 : tint === 0.5 ? 0.05 : 0.05)) { width += xInc }
           me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
           col += width - xInc
         }
