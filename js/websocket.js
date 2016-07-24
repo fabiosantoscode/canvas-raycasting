@@ -6,7 +6,7 @@ window.addEventListener('load', () => {
   var myId = Math.random()
 
   sock.addEventListener('message', (message) => {
-    console.log(message)
+    // console.log(message)
     var data = JSON.parse(message.data)
     if (data.id === app.player.id) {
       // It's me, I know

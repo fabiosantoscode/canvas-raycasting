@@ -28,7 +28,7 @@ var Textures = (function() {
         ingame_width: .25,
         ingame_displacement_x: 0,
         ingame_displacement_y: .5,
-        onscreen_width: .25,
+        onscreen_width: .20,
         animation: {
           fps: 16,
           frames: [ 'img/nade.png', 'img/nade-1.png' ],
@@ -54,7 +54,7 @@ var Textures = (function() {
         animation: {
           fps: 8,
           frames: [ 1, 2, 3 ].map(n => 'img/racket-'+n+'.png'),
-          linger: false,
+          loop: false,
         }
       },
     ];
@@ -141,7 +141,7 @@ var Player = function(x, y, isenemy) {
 
     fire_state: 'idle',
     fire_last: 0,
-    fire_speed: 200,
+    fire_speed: 250,
     fire_cooldown: 1000,
   };
   me.sqRadius = me.radius * me.radius
@@ -173,15 +173,15 @@ var Player = function(x, y, isenemy) {
     incr_y: 0,
     incr_angle: 0,
   })
+  const round2 = n => Math.round(n * 100) / 100
   me.save = function (data) {
-    const round = n => Math.round(n * 100) / 100
     _saved.id = me.id
-    _saved.x = round(me.x)
-    _saved.y = round(me.y)
-    _saved.angle = round(me.angle)
-    _saved.incr_x = round(me.incr_x)
-    _saved.incr_y = round(me.incr_y)
-    _saved.incr_angle = round(me.incr_angle)
+    _saved.x = round2(me.x)
+    _saved.y = round2(me.y)
+    _saved.angle = round2(me.angle)
+    _saved.incr_x = round2(me.incr_x)
+    _saved.incr_y = round2(me.incr_y)
+    _saved.incr_angle = round2(me.incr_angle)
     return _saved
   }
 
@@ -256,10 +256,14 @@ var Player = function(x, y, isenemy) {
         var nade_angle = me.angle + (nade_x_minus_one_to_one * 0.66)
         nade.incr_x = Math.cos(nade_angle) * nade.speed
         nade.incr_y = Math.sin(nade_angle) * nade.speed
+        nade.x += Math.cos(nade_angle) * .6
+        nade.y += Math.sin(nade_angle) * .6
         nade.incr_x += me.incr_x
         nade.incr_y += me.incr_y
-        nade.incr_z = me.own_grenade_y < 0.2 ? 0.6 :
-          me.own_grenade_y > 0.7 ? -1 : 0.4
+        nade.incr_z = me.own_grenade_y < 0.2 ? 0.2 :
+          me.own_grenade_y > 0.7 ? 0.6 : 0.4
+        nade.z = me.own_grenade_y < 0.2 ? 0.8 :
+          me.own_grenade_y > 0.7 ? 0.3 : 0.5
         nade.incr_z *= nade.speed
         app.map.objs.objs.push(nade)
       }
@@ -684,7 +688,6 @@ var Foreground = function(player, canvas_element) {
     var touch = findTouch(e)
     if (touch === undefined) { return }
     moveGrenade(touch)
-    console.log(player.own_grenade_x, player.own_grenade_y)
   }
 
   function onTouchEnd (e) {
@@ -713,8 +716,14 @@ var Foreground = function(player, canvas_element) {
   function releaseGrenade () {
     player.fire_state = 'firing'
     release_start = Date.now()
+    artificial_fall = -4
+    artificial_fall_speed = -17
     player.fire_grenade(release_start)
   }
+
+  var still_animating_racket = false
+  var artificial_fall_speed = 0
+  var artificial_fall = 0
 
   me.draw = function (ctx, dt) {
     var grenade_x = player.own_grenade_x * canvas_element.width
@@ -729,24 +738,34 @@ var Foreground = function(player, canvas_element) {
                     grenadeSprite.width, grenadeSprite.height,
                     x, y,
                     size, size)
-    } else if (player.fire_state === 'firing') {
+    }
+
+    if (player.fire_state === 'firing' || still_animating_racket) {
       var size = app._width * grenadeSprite.onscreen_width
       var halfSize = size >> 1
-      ctx.drawImage(grenadeSprite,
-                    0, 0,
-                    grenadeSprite.width, grenadeSprite.height,
-                    grenade_x - halfSize, grenade_y - halfSize,
-                    size, size)
+      if (player.fire_state === 'firing') {
+        artificial_fall_speed += 4 * dt
+        artificial_fall = (artificial_fall + artificial_fall_speed) | 0
+        var grenade_animated_sprite = Textures.get_animation_frame(grenadeSprite, Date.now() - release_start)
+        ctx.drawImage(grenade_animated_sprite,
+                      0, 0,
+                      grenadeSprite.width, grenadeSprite.height,
+                      grenade_x - halfSize, grenade_y - halfSize + artificial_fall,
+                      size, size)
+      }
       var size = app._width * racketSprite.onscreen_width
       var halfSize = size >> 1
       var y = grenade_y - halfSize + ( size * racketSprite.ingame_displacement_y )
       var animationFrame = Textures.get_animation_frame(racketSprite, Date.now() - release_start)
       if (animationFrame) {
+        still_animating_racket = true
         ctx.drawImage(animationFrame,
                       0, 0,
                       racketSprite.width, racketSprite.height,
                       grenade_x - halfSize, y|0,
                       size, size)
+      } else {
+        still_animating_racket = false
       }
     }
   };
@@ -807,10 +826,6 @@ var Application = function(canvasID) {
     ex._squareId = Math.floor(ex.y) * me.map.width + Math.floor(ex.x)
   }
 
-  me.draw_floor_ceiling_gradient = function () {
-    me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
-  }
-
 	var zBuffer = []; // used for sprites (objects)
   var wallXBuffer = [];
   var normalBuffer = [];
@@ -824,7 +839,7 @@ var Application = function(canvasID) {
   const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
 	me.draw = function(dt) {
 		// floor / ceiling 
-    me.draw_floor_ceiling_gradient();
+    me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
 
 		var col
     var player_angle = Common.extrapolate_angle(me.player, dt)
