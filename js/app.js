@@ -659,6 +659,7 @@ var Foreground = function(player, canvas_element) {
     var touch = e.type === 'touchstart' ? e.changedTouches[0] : e
     if (touchIdx !== null ||
         player.fire_state !== 'idle' ||
+        e.target !== canvas_element ||
         touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
       return
     }
@@ -759,6 +760,67 @@ var Foreground = function(player, canvas_element) {
   return me
 }
 
+var Rays = {
+  cast_result: Object.seal({
+    ray_x: 0,
+    ray_y: 0,
+    dist_x: 0,
+    dist_y: 0,
+    mx: 0,
+    my: 0,
+    delta_x: 0,
+    delta_y: 0,
+    horiz: false,
+    normal: 0,
+    step_x: 0,
+    step_y: 0,
+  }),
+  cast: function (map, ray_x, ray_y, ray_dx, ray_dy) {
+    var res = Rays.cast_result
+    res.mx = Math.floor(ray_x)
+    res.my = Math.floor(ray_y)
+    res.delta_x = Math.sqrt(1 + (ray_dy * ray_dy) / (ray_dx*ray_dx))
+    res.delta_y = Math.sqrt(1 + (ray_dx * ray_dx) / (ray_dy*ray_dy))
+
+    if(ray_dx < 0) {
+      res.step_x = -1;
+      res.dist_x = (res.ray_x - res.mx) * res.delta_x;
+    } else {
+      res.step_x = 1;
+      res.dist_x = (res.mx + 1 - res.ray_x) * res.delta_x;
+    }
+    if(ray_dy < 0) {
+      res.step_y = -1;
+      res.dist_y = (res.ray_y - res.my) * res.delta_y;
+    } else {
+      res.step_y = 1;
+      res.dist_y = (res.my + 1 - res.ray_y) * res.delta_y;
+    }
+
+    var lim = 50  // simple safeguard against infinite loops
+    while(lim--) {
+      if(res.dist_x < res.dist_y) {
+        res.dist_x += res.delta_x;
+        res.mx += res.step_x;
+        res.horiz = true;
+        res.normal = res.step_x > 0 ? HALF_TAU : 0
+      } else {
+        res.dist_y += res.delta_y;
+        res.my += res.step_y;
+        res.horiz = false;
+        res.normal = res.step_y > 0 ? (QUARTER_TAU * 3) : QUARTER_TAU
+      }
+
+      if(!map.is_free(res.mx, res.my)) {
+        break;
+      }
+    }
+
+    Rays.cast_result.ray_x = ray_x
+    Rays.cast_result.ray_y = ray_y
+  }
+}
+
 var Application = function(canvasID) {
   var defaultWidth = 512
   var defaultHeight = 307
@@ -813,6 +875,7 @@ var Application = function(canvasID) {
   }
 
 	var zBuffer = []; // used for sprites (objects)
+  var wall_height_buffer = [];
   var wallXBuffer = [];
   var normalBuffer = [];
   var textureBuffer = [];
@@ -823,6 +886,7 @@ var Application = function(canvasID) {
 
   const mod = (a, n) => a - Math.floor(a/n) * n
   const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
+  const shadow_tint_for_z = (z) => Math.floor(Math.min(0.75, Math.max(0, 0.1 + (z * 0.12))) * 4) * .25
 	me.draw = function(dt) {
 		// floor / ceiling 
     me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
@@ -849,49 +913,21 @@ var Application = function(canvasID) {
       zBufferPassCacheKey = k
       for(col=0; col<me._width; col+=xInc) {
         camera = 2 * col / me._width - 1;
-        ray_x = player_x;
-        ray_y = player_y;
-        mx = Math.floor(ray_x);
-        my = Math.floor(ray_y);
         ray_dx = player_dx + player_cx*camera;
         ray_dy = player_dy + player_cy*camera;
-        delta_x = Math.sqrt(1 + (ray_dy * ray_dy) / (ray_dx*ray_dx));
-        delta_y = Math.sqrt(1 + (ray_dx * ray_dx) / (ray_dy*ray_dy));
 
-        // initial step for the ray
-        if(ray_dx < 0) {
-          step_x = -1;
-          var dist_x = (ray_x - mx) * delta_x;
-        } else {
-          step_x = 1;
-          var dist_x = (mx + 1 - ray_x) * delta_x;
-        }
-        if(ray_dy < 0) {
-          step_y = -1;
-          var dist_y = (ray_y - my) * delta_y;
-        } else {
-          step_y = 1;
-          var dist_y = (my + 1 - ray_y) * delta_y;
-        }
+        Rays.cast(me.map, player_x, player_y, ray_dx, ray_dy)
 
-        // DDA
-        while(true) {
-          if(dist_x < dist_y) {
-            dist_x += delta_x;
-            mx += step_x;
-            horiz = true;
-            wall_normal = step_x > 0 ? HALF_TAU : 0
-          } else {
-            dist_y += delta_y;
-            my += step_y;
-            horiz = false;
-            wall_normal = step_y > 0 ? (QUARTER_TAU * 3) : QUARTER_TAU
-          }
-
-          if(!me.map.is_free(mx, my)) {
-            break;
-          }
-        }
+        ray_x = Rays.cast_result.ray_x
+        ray_y = Rays.cast_result.ray_y
+        mx = Rays.cast_result.mx
+        my = Rays.cast_result.my
+        delta_x = Rays.cast_result.delta_x
+        delta_y = Rays.cast_result.delta_y
+        horiz = Rays.cast_result.horiz
+        wall_normal = Rays.cast_result.normal
+        step_x = Rays.cast_result.step_x
+        step_y = Rays.cast_result.step_y
 
         // wall distance
         if(horiz) {
@@ -923,6 +959,7 @@ var Application = function(canvasID) {
         textureBuffer[col] = tex
         normalBuffer[col] = wall_normal;
         zBuffer[col] = wall_dist;
+        wall_height_buffer[col] = Math.abs(me._height / zBuffer[col])|0
         mapSquareIDBuffer[col] = my * me.map.width + mx
       }
     }
@@ -934,8 +971,8 @@ var Application = function(canvasID) {
       wall_normal = normalBuffer[col]
       var map_square_id = mapSquareIDBuffer[col]
 
-			wall_height = Math.abs(Math.floor(me._height / wall_dist));
-			draw_start = (-wall_height/2 + me._height/2)|0;
+			wall_height = wall_height_buffer[col]
+			draw_start = (me._height/2-wall_height/2)|0;
 
       var player_behind_angle = player_angle + HALF_TAU % TAU
       var player_wall_angle = angle_distance(wall_normal, player_behind_angle)
@@ -949,6 +986,7 @@ var Application = function(canvasID) {
         angle_d < 0.1 ||
         wall_dist < 2 && angle_d < 0.35 && width < 40 ||
         wall_dist < 1 && width < 10 ||
+        wall_dist < 0.7 && width < 40 && angle_d < 1.5 ||
         wall_dist > 2 && width < 5 ||
         wall_dist > 2 && angle_d < 0.3 && width < 100 ||
         wall_dist > 2 && angle_d < 0.4 && width < 40 ||
@@ -959,9 +997,10 @@ var Application = function(canvasID) {
       ) {
         width += xInc
         wall_normal = normalBuffer[col + width - xInc]
-        wall_dist = zBuffer[col + width + xInc]
-        end_wall_x = wallXBuffer[col + width]
       }
+      end_wall_x = wallXBuffer[col + width]
+      wall_height = wall_height_buffer[col + Math.floor((width/2) / xInc) * xInc]
+      draw_start = (me._height/2-wall_height/2)
       var use_width = width + xInc
       var use_tex = tex
       var use_col = col
@@ -988,14 +1027,13 @@ var Application = function(canvasID) {
 
     // Shadows
 
-    if (me.shadows) {
+    if (me.shadows && !explosions.length) {
       xInc = originalXInc * 5
       var halfXInc = xInc / 2
       for (col = 0; col < me._width; col += xInc) {
         // light
         var prevTint = tint
-        var tint = Math.min(0.75, Math.max(0, 0.1 + (zBuffer[col] * 0.12)));
-        tint = ((tint * 4)|0) * 0.25
+        var tint = shadow_tint_for_z(zBuffer[col])
         if (tint > 0.1 && tint !== prevTint) {
           me.ctx.fillStyle = "rgba(" + 0 + ", " + 0 + ", " + 0 + ", " + tint + ")";
         }
@@ -1003,7 +1041,7 @@ var Application = function(canvasID) {
           var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
           var draw_start = (-wall_height/2 + me._height/2)|0;
           var width = xInc;
-          while (Math.abs(zBuffer[col + width] - zBuffer[col]) < (tint > 0.5 ? 0.05 : tint === 0.5 ? 0.05 : 0.05)) { width += xInc }
+          while (Math.abs(wall_height_buffer[col + width] - wall_height_buffer[col]) < 5) { width += xInc }
           me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
           col += width - xInc
         }
@@ -1028,7 +1066,9 @@ var Application = function(canvasID) {
         ) {
           if (!explosion) {
             explosion = true
-            me.ctx.fillStyle = 'rgba(255, 255, 200, 0.6)'
+            me.ctx.fillStyle = Date_now - explosions[i].animation_start > 600 ?
+              'rgba(255, 255, 200, 0.2)' :
+              'rgba(255, 255, 200, 0.6)'
           }
           if (Date_now - explosions[i].animation_start < 800) {
             var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
