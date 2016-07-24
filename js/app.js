@@ -890,7 +890,7 @@ var Application = function(canvasID) {
   const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
   const shadow_tint_for_z = (z) => Math.floor(Math.min(0.75, Math.max(0, 0.1 + (z * 0.12))) * 4) * .25
   var originalXInc = 2
-	me.draw = function(dt) {
+	me.draw = function(dt, timeStamp) {
 		// floor / ceiling 
     me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
 
@@ -903,8 +903,6 @@ var Application = function(canvasID) {
     var player_cx = Common.extrapolate_cx(me.player, dt, player_angle)
     var player_cy = Common.extrapolate_cy(me.player, dt, player_angle)
 
-    var Date_now = Date.now()
-
     me.populate_buffers(player_x, player_y, player_dx, player_dy, player_cx, player_cy)
 
     me.draw_walls(player_angle)
@@ -913,9 +911,9 @@ var Application = function(canvasID) {
       me.draw_shadows()
     }
 
-    me.draw_explosions(Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
+    me.draw_explosions(timeStamp, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
 
-    me.draw_sprites(Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
+    me.draw_sprites(timeStamp, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
 
 		// FPS
 		var time = Date.now();
@@ -1079,7 +1077,7 @@ var Application = function(canvasID) {
     }
   }
 
-  me.draw_explosions = function (Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
+  me.draw_explosions = function (timeStamp, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
     for (var i = 0; i < explosions.length; i++) {
       var explosion = false
       var xInc = originalXInc * 5
@@ -1098,11 +1096,11 @@ var Application = function(canvasID) {
         ) {
           if (!explosion) {
             explosion = true
-            me.ctx.fillStyle = Date_now - explosions[i].animation_start > 600 ?
+            me.ctx.fillStyle = timeStamp - explosions[i].animation_start > 600 ?
               'rgba(255, 255, 200, 0.2)' :
               'rgba(255, 255, 200, 0.6)'
           }
-          if (Date_now - explosions[i].animation_start < 800) {
+          if (timeStamp - explosions[i].animation_start < 800) {
             var wall_height = wall_height_buffer[col]
             var draw_start = (-wall_height/2 + me._height/2)|0;
             var width = 0
@@ -1140,7 +1138,7 @@ var Application = function(canvasID) {
           (ceiling_height * explosions[i].sprite.ingame_displacement_y) -
           (ceiling_height * Common.extrapolate_z(explosions[i], dt)))
 
-        var libido = .9 - (Date_now - explosions[i].animation_start) / 1000
+        var libido = .9 - (timeStamp - explosions[i].animation_start) / 1000
         libido = Math.floor(libido * 8) / 8
 
         if (libido > 0) {
@@ -1159,7 +1157,7 @@ var Application = function(canvasID) {
             screen_x - (scale / 4), start_y + scale / 4,
             scale / 2, scale / 2)
         }
-      } else if (Date_now - explosions[explosions.length - 1].animation_start < 150) {
+      } else if (timeStamp - explosions[explosions.length - 1].animation_start < 150) {
         var dist = 1 - (Common.sqDistance(explosions[explosions.length - 1], me.player.x, me.player.y) / 40)
         if (dist > 0) {
           me.ctx.fillStyle = 'rgba(255, 255, 200, '+Math.min(0.05, dist)+')'
@@ -1172,7 +1170,7 @@ var Application = function(canvasID) {
     }
   }
 
-  me.draw_sprites = function (Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
+  me.draw_sprites = function (timeStamp, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
 		// sprites (Objects)
 		var i, col, sprite_x, sprite_y, inv, trans_x, trans_y, screen_x,
 			sprite_width, start_x, start_y, tex, tex_x;
@@ -1224,7 +1222,7 @@ var Application = function(canvasID) {
       var sprite = sprites[i].obj.sprite
 
       if (sprite.animation) {
-        var ms_since = Date_now - (sprites[i].obj.animation_start || 0)
+        var ms_since = timeStamp - (sprites[i].obj.animation_start || 0)
         sprite = Textures.get_animation_frame(sprite, ms_since)
       }
 
@@ -1288,7 +1286,7 @@ var Application = function(canvasID) {
     if ((now - lastDraw) >= thirtyFPS) {
       // This means that we're letting it refresh at 25 or 30, whatever floats its boat
       lastDraw = now
-      me.draw(toGo);
+      me.draw(toGo, now);
       me.foreground.draw(me.ctx, toGo);
 		}
 	};
