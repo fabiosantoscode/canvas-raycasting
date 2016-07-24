@@ -16,7 +16,7 @@ wss.on('connection', ws => {
 })
 
 var port = +process.env['PORT'] || 8080
-server.listen(port).on('listening', function () {
+server.listen(port, '0.0.0.0').on('listening', function () {
   console.log('server listening on port ' + port)
 })
 

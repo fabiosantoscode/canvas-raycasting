@@ -659,7 +659,6 @@ var Foreground = function(player, canvas_element) {
     var touch = e.type === 'touchstart' ? e.changedTouches[0] : e
     if (touchIdx !== null ||
         player.fire_state !== 'idle' ||
-        e.target !== canvas_element ||
         touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
       return
     }
@@ -887,6 +886,7 @@ var Application = function(canvasID) {
   const mod = (a, n) => a - Math.floor(a/n) * n
   const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
   const shadow_tint_for_z = (z) => Math.floor(Math.min(0.75, Math.max(0, 0.1 + (z * 0.12))) * 4) * .25
+  var originalXInc = 2
 	me.draw = function(dt) {
 		// floor / ceiling 
     me.ctx.drawImage(Textures.textures[1], 0, 0, me._width, me._height)
@@ -902,16 +902,42 @@ var Application = function(canvasID) {
 
     var Date_now = Date.now()
 
+    me.populate_buffers(player_x, player_y, player_dx, player_dy, player_cx, player_cy)
+
+    me.draw_walls(player_angle)
+
+    if (me.shadows && !explosions.length) {
+      me.draw_shadows()
+    }
+
+    me.draw_explosions(Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
+
+    me.draw_sprites(Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
+
+		// FPS
+		var time = Date.now();
+
+		me._frames++;
+
+		me.ctx.fillStyle = "rgb(255, 0, 0)";
+		me.ctx.fillText("FPS: " + Math.round(me._frames*1000 / (time-me._time)), 1, me.height-5);
+
+		if(time > me._time + me.fps*1000) {
+			me._time = time;
+			me._frames = 0;
+		}
+	};
+
+  me.populate_buffers = function (player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
     var camera, ray_x, ray_y, ray_dx, ray_dy, mx, my, delta_x,
       delta_y, step_x, step_y, horiz, wall_dist, wall_height,
       wall_x, draw_start, tex;
     var wall_normal
-    var originalXInc = 2
     var xInc = originalXInc
     var k = ''.concat(player_x,':',player_y,':',player_dx,':',player_dy,':',player_cx,':',player_cy)
     if (k !== zBufferPassCacheKey) {
       zBufferPassCacheKey = k
-      for(col=0; col<me._width; col+=xInc) {
+      for(var col=0; col<me._width; col+=xInc) {
         camera = 2 * col / me._width - 1;
         ray_dx = player_dx + player_cx*camera;
         ray_dy = player_dy + player_cy*camera;
@@ -931,11 +957,11 @@ var Application = function(canvasID) {
 
         // wall distance
         if(horiz) {
-          wall_dist = (mx - ray_x + (1 - step_x) * 0.5) / ray_dx;
-          wall_x = ray_y + ((mx - ray_x + (1 - step_x) * 0.5) / ray_dx) * ray_dy;
+          wall_dist = (mx - ray_x + (1 - step_x) * 0.5) / ray_dx
+          wall_x = ray_y + wall_dist * ray_dy;
         } else {
-          wall_dist = (my - ray_y + (1 - step_y) * 0.5) / ray_dy;
-          wall_x = ray_x + ((my - ray_y + (1 - step_y) * 0.5) / ray_dy) * ray_dx;
+          wall_dist = (my - ray_y + (1 - step_y) * 0.5) / ray_dy
+          wall_x = ray_x + wall_dist * ray_dx;
         }
         wall_x -= Math.floor(wall_x);
 
@@ -963,16 +989,19 @@ var Application = function(canvasID) {
         mapSquareIDBuffer[col] = my * me.map.width + mx
       }
     }
+  }
 
-    for (col = 0; col < me._width; col += xInc) {
-      wall_x = wallXBuffer[col]
-      wall_dist = zBuffer[col]
-      tex = textureBuffer[col]
-      wall_normal = normalBuffer[col]
+  me.draw_walls = function (player_angle) {
+    var xInc = originalXInc;
+    for (var col = 0; col < me._width; col += xInc) {
+      var wall_x = wallXBuffer[col]
+      var wall_dist = zBuffer[col]
+      var tex = textureBuffer[col]
+      var wall_normal = normalBuffer[col]
       var map_square_id = mapSquareIDBuffer[col]
 
-			wall_height = wall_height_buffer[col]
-			draw_start = (me._height/2-wall_height/2)|0;
+			var wall_height = wall_height_buffer[col]
+			var draw_start = (me._height/2-wall_height/2)|0;
 
       var player_behind_angle = player_angle + HALF_TAU % TAU
       var player_wall_angle = angle_distance(wall_normal, player_behind_angle)
@@ -1024,33 +1053,33 @@ var Application = function(canvasID) {
         col += width - xInc
       }
 		}
+  }
 
-    // Shadows
-
-    if (me.shadows && !explosions.length) {
-      xInc = originalXInc * 5
-      var halfXInc = xInc / 2
-      for (col = 0; col < me._width; col += xInc) {
-        // light
-        var prevTint = tint
-        var tint = shadow_tint_for_z(zBuffer[col])
-        if (tint > 0.1 && tint !== prevTint) {
-          me.ctx.fillStyle = "rgba(" + 0 + ", " + 0 + ", " + 0 + ", " + tint + ")";
-        }
-        if (tint > 0.1) {
-          var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
-          var draw_start = (-wall_height/2 + me._height/2)|0;
-          var width = xInc;
-          while (Math.abs(wall_height_buffer[col + width] - wall_height_buffer[col]) < 5) { width += xInc }
-          me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
-          col += width - xInc
-        }
+  me.draw_shadows = function () {
+    var xInc = originalXInc * 5
+    var halfXInc = xInc / 2
+    for (var col = 0; col < me._width; col += xInc) {
+      // light
+      var prevTint = tint
+      var tint = shadow_tint_for_z(zBuffer[col])
+      if (tint > 0.1 && tint !== prevTint) {
+        me.ctx.fillStyle = "rgba(" + 0 + ", " + 0 + ", " + 0 + ", " + tint + ")";
+      }
+      if (tint > 0.1) {
+        var wall_height = wall_height_buffer[col]
+        var draw_start = (-wall_height/2 + me._height/2)|0;
+        var width = xInc;
+        while (Math.abs(wall_height_buffer[col + width] - wall_height_buffer[col]) < 5) { width += xInc }
+        me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
+        col += width - xInc
       }
     }
+  }
 
-    for (i = 0; i < explosions.length; i++) {
+  me.draw_explosions = function (Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
+    for (var i = 0; i < explosions.length; i++) {
       var explosion = false
-      xInc = originalXInc * 5
+      var xInc = originalXInc * 5
       var halfXInc = xInc / 2
       var row1Start = explosions[i]._squareId - me.map.width - 3
       var row1End = explosions[i]._squareId - me.map.width + 3
@@ -1058,7 +1087,7 @@ var Application = function(canvasID) {
       var row2End = explosions[i]._squareId + 3
       var row3Start = explosions[i]._squareId + me.map.width - 3
       var row3End = explosions[i]._squareId + me.map.width + 3
-      for (col = 0; col < me._width; col += xInc) {
+      for (var col = 0; col < me._width; col += xInc) {
         if (
           (row1Start < mapSquareIDBuffer[col] && mapSquareIDBuffer[col] < row1End) ||
           (row2Start < mapSquareIDBuffer[col] && mapSquareIDBuffer[col] < row2End) ||
@@ -1071,8 +1100,9 @@ var Application = function(canvasID) {
               'rgba(255, 255, 200, 0.6)'
           }
           if (Date_now - explosions[i].animation_start < 800) {
-            var wall_height = Math.abs(Math.floor(me._height / zBuffer[col]))
+            var wall_height = wall_height_buffer[col]
             var draw_start = (-wall_height/2 + me._height/2)|0;
+            var width = 0
             while (Math.abs(zBuffer[col + width] - zBuffer[col]) < 0.05) { width += xInc }
             me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
           }
@@ -1084,10 +1114,10 @@ var Application = function(canvasID) {
         var explosion_y = explosions[i].y - player_y;
         var explosion_z = explosions[i].z
 
-        inv = 1.0 / (player_cx*player_dy - player_dx*player_cy);
-        trans_x = inv * (player_dy*explosion_x - player_dx*explosion_y);
-        trans_y = inv * (-player_cy*explosion_x + player_cx*explosion_y);
-        screen_x = Math.floor((me._width/2) * (1 + trans_x/trans_y));
+        var inv = 1.0 / (player_cx*player_dy - player_dx*player_cy);
+        var trans_x = inv * (player_dy*explosion_x - player_dx*explosion_y);
+        var trans_y = inv * (-player_cy*explosion_x + player_cx*explosion_y);
+        var screen_x = Math.floor((me._width/2) * (1 + trans_x/trans_y));
 
         if (trans_y < 0) { continue; /* Behind the screen */ }
 
@@ -1137,13 +1167,15 @@ var Application = function(canvasID) {
         }
       }
     }
+  }
 
+  me.draw_sprites = function (Date_now, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
 		// sprites (Objects)
 		var i, col, sprite_x, sprite_y, inv, trans_x, trans_y, screen_x,
 			sprite_width, start_x, start_y, tex, tex_x;
 
 		var sprites = me.map.objs.sorted(player_x, player_y);
-    xInc = originalXInc
+    var xInc = originalXInc
 		for(i=0; i<sprites.length; i++) {
 			sprite_x = Common.extrapolate_x(sprites[i].obj, dt) - player_x;
 			sprite_y = Common.extrapolate_y(sprites[i].obj, dt) - player_y;
@@ -1230,6 +1262,7 @@ var Application = function(canvasID) {
         )
       }
 		}
+  }
 
 		// FPS
 		var time = Date.now();
