@@ -10,8 +10,8 @@ var Textures = (function() {
     files = [
       {
         src: 'img/bot.png',
-        ingame_height: .25,
-        ingame_width: .25,
+        ingame_height: 1,
+        ingame_width: 1,
         ingame_displacement_x: 0,
         ingame_displacement_y: .5,
       },
@@ -23,12 +23,17 @@ var Textures = (function() {
         flipped: true,
       },
       {
-        src: 'img/object.png',
+        src: 'img/nade.png',
         ingame_height: .25,
         ingame_width: .25,
         ingame_displacement_x: 0,
         ingame_displacement_y: .5,
         onscreen_width: .25,
+        animation: {
+          fps: 16,
+          frames: [ 'img/nade.png', 'img/nade-1.png' ],
+          loop: true,
+        }
       },
       {
         src: 'img/explosion-1.png',
@@ -62,6 +67,9 @@ var Textures = (function() {
         texture.animation.linger &&
         frameIdx >= texture.animation.frames.length
       ) { frameIdx = texture.animation.frames.length - 1 }
+      if (texture.animation.loop) {
+        frameIdx %= texture.animation.frames.length
+      }
       return texture.animation.frames[frameIdx]
     }
   }
@@ -1135,7 +1143,8 @@ var Application = function(canvasID) {
       var sprite = sprites[i].obj.sprite
 
       if (sprite.animation) {
-        sprite = Textures.get_animation_frame(sprite, Date_now - sprites[i].obj.animation_start)
+        var ms_since = Date_now - (sprites[i].obj.animation_start || 0)
+        sprite = Textures.get_animation_frame(sprite, ms_since)
       }
 
       if (zBuffer[start_x] > dist && zBuffer[end_x] > dist) {
