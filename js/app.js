@@ -605,6 +605,7 @@ var Objects = function() {
     return find_near_cache
   }
 
+  /*
   me.objs.push(Player(5, 1, 'isenemy'))
 
   var tempData = {"id":0.5219182117326571,"x":5.034241173117036,"y":1.6772855328758354,"incr_x":0.01,"incr_y":0.01,"speed":2,"rotspeed":0.1,"up":false,"down":false,"right":false,"left":false}
@@ -612,6 +613,7 @@ var Objects = function() {
   for (var k in tempData) if (tempData.hasOwnProperty(k)) {
     me.objs[me.objs.length - 1][k] = tempData[k]
   }
+  */
 
 	return me;
 };
