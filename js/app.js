@@ -1386,7 +1386,6 @@ var Application = function(canvasID) {
 
   me.respawn = function() {
     var point = me.map.spawn_points[Math.floor(Math.random() * me.map.spawn_points.length)]
-    point = me.map.spawn_points[0]
     if (me.map.is_free(point.x, point.y - 1)) {
       player.angle = -QUARTER_TAU
     }
