@@ -21,6 +21,7 @@ var Textures = (function() {
       {
         src: 'img/wall.jpg',
         flipped: true,
+        shaded: true,
       },
       {
         src: 'img/nade.png',
@@ -87,6 +88,14 @@ var Textures = (function() {
     }
   }
 
+  function preprocess_image(image, fn) {
+    var processed = document.createElement('canvas')
+    processed.width = image.width
+    processed.height = image.height
+    fn(processed.getContext('2d'))
+    return processed
+  }
+
   me.init = () => {
     me.textures.forEach((texture, i) => {
       me.textures[i].style.imageRendering = '-moz-crisp-edges';
@@ -98,12 +107,25 @@ var Textures = (function() {
       me.textures[i].onscreen_width = files[i].onscreen_width
       me.textures[i].onscreen_height = files[i].onscreen_height
       me.textures[i].index = i
+      var variations = [ '' ]
       if (files[i].flipped) {
-        var flipped = document.createElement('canvas')
-        var fCtx = flipped.getContext('2d')
-        fCtx.scale(-1, 1)
-        fCtx.drawImage(me.textures[i], -me.textures[i].width, 0)
-        me.textures[i].flipped = flipped
+        variations.push('flipped')
+        me.textures[i].flipped = preprocess_image(me.textures[i], ctx => {
+          ctx.scale(-1, 1)
+          ctx.drawImage(me.textures[i], -me.textures[i].width, 0)
+        })
+      }
+      if (files[i].shaded) {
+        const tints = [ 0.25, 0.5, 0.75 ]
+        variations.forEach(variation => {
+          var tex = me.textures[i]
+          if (variation !== '') { tex = tex[variation] }
+          tex.shaded = tints.map(tint => preprocess_image(tex, ctx => {
+            ctx.drawImage(tex, 0, 0)
+            ctx.fillStyle = 'rgba(0, 0, 0, '+tint+')'
+            ctx.fillRect(0, 0, tex.width, tex.height)
+          }))
+        })
       }
     })
   }
@@ -550,34 +572,28 @@ var Objects = function() {
 var Map = function() {
   var _ = -1
 	var me = {
-		UNUSED : -1,
-		FREE : 0,
-		BLOCK : 1,
-		MOVEABLE : 2,
-
-		name : 'Test Dungeon',
 		data : [
-         2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-				 2,_,_,_,_,_,_,_,2,2,2,_,_,_,2,_,_,_,_,2,
-				 2,_,2,2,_,2,2,_,_,2,2,_,_,_,_,_,_,2,_,2,
-				 2,_,2,2,_,2,2,_,_,_,_,_,2,2,_,2,_,_,_,2,
-				 2,_,_,_,_,2,2,2,2,2,2,2,2,2,_,_,_,2,_,2,
-				 2,2,_,2,2,2,2,2,2,2,2,2,2,2,2,2,2,_,_,2,
-				 2,_,_,_,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
-				 2,_,_,_,2,2,2,_,_,_,_,_,_,2,_,2,_,2,2,2,
-				 2,2,_,2,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
-				 2,2,_,_,2,2,2,2,_,2,2,2,_,2,_,2,_,2,2,2,
-				 2,2,2,_,_,_,_,_,_,2,2,2,_,_,_,_,_,2,2,2,
-				 2,2,2,_,_,_,2,2,2,2,2,2,2,2,_,2,2,2,2,2,
-				 2,2,2,2,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
-				 2,_,_,_,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
-				 2,_,_,2,2,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
-				 2,2,_,2,2,_,_,2,2,2,2,2,2,2,_,_,2,2,2,2,
-				 2,2,_,_,_,_,_,_,2,2,2,2,2,2,2,_,2,2,2,2,
-				 2,2,2,2,2,_,_,_,_,2,2,2,_,_,_,_,_,_,_,2,
-				 2,2,2,2,2,2,_,_,_,2,2,2,2,_,2,2,2,_,2,2,
-				 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
-			     ],
+      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+      2,_,_,_,_,_,_,_,2,2,2,_,_,_,2,_,_,_,_,2,
+      2,_,2,2,_,2,2,_,_,2,2,_,_,_,_,_,_,2,_,2,
+      2,_,2,2,_,2,2,_,_,_,_,_,2,2,_,2,_,_,_,2,
+      2,_,_,_,_,2,2,2,2,2,2,2,2,2,_,_,_,2,_,2,
+      2,2,_,2,2,2,2,2,2,2,2,2,2,2,2,2,2,_,_,2,
+      2,_,_,_,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
+      2,_,_,_,2,2,2,_,_,_,_,_,_,2,_,2,_,2,2,2,
+      2,2,_,2,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
+      2,2,_,_,2,2,2,2,_,2,2,2,_,2,_,2,_,2,2,2,
+      2,2,2,_,_,_,_,_,_,2,2,2,_,_,_,_,_,2,2,2,
+      2,2,2,_,_,_,2,2,2,2,2,2,2,2,_,2,2,2,2,2,
+      2,2,2,2,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
+      2,_,_,_,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
+      2,_,_,2,2,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
+      2,2,_,2,2,_,_,2,2,2,2,2,2,2,_,_,2,2,2,2,
+      2,2,_,_,_,_,_,_,2,2,2,2,2,2,2,_,2,2,2,2,
+      2,2,2,2,2,_,_,_,_,2,2,2,_,_,_,_,_,_,_,2,
+      2,2,2,2,2,2,_,_,_,2,2,2,2,_,2,2,2,_,2,2,
+      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+    ],
 		// up to 33 x 23
 		width : 20,
 		height : 20,
@@ -848,16 +864,13 @@ var Application = function(canvasID) {
 		fps : 30,
 		_time : Date.now(),
 		_frames : 0,
-    shadows: true,
     resolution: 1,
     latest_animation_timestamp: 0,  // Because the time an explosion starts is not Date.now(), it's the RAF thing
 	};
 
-	me.setup = function({ shadows, resolution } = {}) {
-    if (shadows === undefined) shadows = me.shadows
+	me.setup = function({ resolution } = {}) {
     if (resolution === undefined) resolution = me.resolution
 
-    me.shadows = shadows
     me.width = defaultWidth * resolution
     me.height = defaultHeight * resolution
     me._width = defaultWidth * resolution
@@ -889,7 +902,7 @@ var Application = function(canvasID) {
 
   const mod = (a, n) => a - Math.floor(a/n) * n
   const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
-  const shadow_tint_for_z = (z) => Math.floor(Math.min(0.75, Math.max(0, 0.1 + (z * 0.12))) * 4) * .25
+  const shadow_tint_for_z = (z) => Math.floor(Math.min(0.75, Math.max(0, 0.1 + (z * 0.12))) * 4)
   var originalXInc = 2
 	me.draw = function(dt, timeStamp) {
 		// floor / ceiling 
@@ -907,10 +920,6 @@ var Application = function(canvasID) {
     me.populate_buffers(player_x, player_y, player_dx, player_dy, player_cx, player_cy)
 
     me.draw_walls(player_angle)
-
-    if (me.shadows && !explosions.length) {
-      me.draw_shadows()
-    }
 
     me.draw_explosions(timeStamp, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy)
 
@@ -1039,6 +1048,12 @@ var Application = function(canvasID) {
       if (isFlippedBuffer[col]) {
         use_tex = tex.flipped
       }
+      if (use_tex.shaded && !explosions.length) {
+        var tint = shadow_tint_for_z(zBuffer[col])
+        if (tint) {
+          use_tex = use_tex.shaded[tint - 1]
+        }
+      }
       if (end_wall_x < wall_x) {
         end_wall_x = 64 - end_wall_x
         wall_x = 64 - wall_x
@@ -1055,27 +1070,6 @@ var Application = function(canvasID) {
         col += width - xInc
       }
 		}
-  }
-
-  me.draw_shadows = function () {
-    var xInc = originalXInc * 5
-    var halfXInc = xInc / 2
-    for (var col = 0; col < me._width; col += xInc) {
-      // light
-      var prevTint = tint
-      var tint = shadow_tint_for_z(zBuffer[col])
-      if (tint > 0.1 && tint !== prevTint) {
-        me.ctx.fillStyle = "rgba(" + 0 + ", " + 0 + ", " + 0 + ", " + tint + ")";
-      }
-      if (tint > 0.1) {
-        var wall_height = wall_height_buffer[col]
-        var draw_start = (-wall_height/2 + me._height/2)|0;
-        var width = xInc;
-        while (Math.abs(wall_height_buffer[col + width] - wall_height_buffer[col]) < 5) { width += xInc }
-        me.ctx.fillRect(col - halfXInc, draw_start, width, wall_height);
-        col += width - xInc
-      }
-    }
   }
 
   me.draw_explosions = function (timeStamp, dt, player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
