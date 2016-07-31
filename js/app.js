@@ -3,6 +3,7 @@
 var TAU = Math.PI * 2
 var HALF_TAU = Math.PI
 var QUARTER_TAU = Math.PI / 2
+const round2 = n => Math.round(n * 100) / 100
 
 var Textures = (function() {
   var ver = 1, // increase this for refreshing the cache
@@ -13,7 +14,7 @@ var Textures = (function() {
         ingame_height: 1,
         ingame_width: 1,
         ingame_displacement_x: 0,
-        ingame_displacement_y: .5,
+        ingame_displacement_y: 0
       },
       {
         src: 'img/room.png',
@@ -38,7 +39,7 @@ var Textures = (function() {
       },
       {
         src: 'img/explosion-1.png',
-        ingame_height: 1.2,
+        ingame_height: 1.6,
         ingame_width: 1.2,
         ingame_displacement_x: 0,
         ingame_displacement_y: .5,
@@ -122,7 +123,10 @@ var Textures = (function() {
           if (variation !== '') { tex = tex[variation] }
           tex.shaded = tints.map(tint => preprocess_image(tex, ctx => {
             ctx.drawImage(tex, 0, 0)
-            ctx.fillStyle = 'rgba(0, 0, 0, '+tint+')'
+            ctx.globalCompositeOperation = 'color-burn'
+            var tintPercent = (80 - (tint * 80))
+            var saturation = tint * 17
+            ctx.fillStyle = 'hsla(0, '+saturation+'%, '+tintPercent+'%, '+tint+')'
             ctx.fillRect(0, 0, tex.width, tex.height)
           }))
         })
@@ -181,12 +185,13 @@ var Player = function(x, y, isenemy) {
 	};
 
   me.load = function (data) {
-    for (var key in data) if (key !== 'sprite') {
+    for (var key in data) if (key !== 'sprite' && key !== 'type') {
       me[key] = data[key]
     }
   }
 
   var _saved = Object.seal({
+    type: 'player',
     id: 0,
     x: 0,
     y: 0,
@@ -195,7 +200,6 @@ var Player = function(x, y, isenemy) {
     incr_y: 0,
     incr_angle: 0,
   })
-  const round2 = n => Math.round(n * 100) / 100
   me.save = function (data) {
     _saved.id = me.id
     _saved.x = round2(me.x)
@@ -288,6 +292,7 @@ var Player = function(x, y, isenemy) {
           me.own_grenade_y > 0.7 ? 0.3 : 0.5
         nade.incr_z *= nade.speed
         app.map.objs.objs.push(nade)
+        window.sendShot(nade)
       }
     }
 
@@ -441,6 +446,25 @@ var Grenade = function(x, y, isenemy) {
     app.map.objs.remove(me)
   }
 
+  me.save = function (data) {
+    me.id = me.id || 'grenade-' + Math.random()
+    return {
+      type: 'grenade',
+      id: me.id,
+      x: round2(me.x),
+      y: round2(me.y),
+      z: round2(me.z),
+      incr_x: round2(me.incr_x),
+      incr_y: round2(me.incr_y),
+    }
+  }
+
+  me.load = function (data) {
+    for (var key in data) if (key !== 'sprite' && key !== 'type') {
+      me[key] = data[key]
+    }
+  }
+
   return me
 }
 
@@ -571,28 +595,30 @@ var Objects = function() {
 
 var Map = function() {
   var _ = -1
+  var w = 2  // wall
+  var O = -2  // spawn
 	var me = {
 		data : [
-      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-      2,_,_,_,_,_,_,_,2,2,2,_,_,_,2,_,_,_,_,2,
-      2,_,2,2,_,2,2,_,_,2,2,_,_,_,_,_,_,2,_,2,
-      2,_,2,2,_,2,2,_,_,_,_,_,2,2,_,2,_,_,_,2,
-      2,_,_,_,_,2,2,2,2,2,2,2,2,2,_,_,_,2,_,2,
-      2,2,_,2,2,2,2,2,2,2,2,2,2,2,2,2,2,_,_,2,
-      2,_,_,_,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
-      2,_,_,_,2,2,2,_,_,_,_,_,_,2,_,2,_,2,2,2,
-      2,2,_,2,2,2,2,_,_,_,2,2,_,_,_,_,_,2,2,2,
-      2,2,_,_,2,2,2,2,_,2,2,2,_,2,_,2,_,2,2,2,
-      2,2,2,_,_,_,_,_,_,2,2,2,_,_,_,_,_,2,2,2,
-      2,2,2,_,_,_,2,2,2,2,2,2,2,2,_,2,2,2,2,2,
-      2,2,2,2,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
-      2,_,_,_,_,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
-      2,_,_,2,2,2,2,2,2,2,2,2,2,_,_,_,_,2,2,2,
-      2,2,_,2,2,_,_,2,2,2,2,2,2,2,_,_,2,2,2,2,
-      2,2,_,_,_,_,_,_,2,2,2,2,2,2,2,_,2,2,2,2,
-      2,2,2,2,2,_,_,_,_,2,2,2,_,_,_,_,_,_,_,2,
-      2,2,2,2,2,2,_,_,_,2,2,2,2,_,2,2,2,_,2,2,
-      2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+      w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,
+      w,O,_,_,_,_,_,_,w,w,w,_,_,O,_,_,_,_,_,w,
+      w,_,w,w,_,w,w,_,_,w,w,_,_,_,_,_,_,w,_,w,
+      w,_,w,w,_,w,w,_,_,_,_,_,w,w,_,w,_,_,_,w,
+      w,_,_,_,_,w,w,w,w,w,w,w,w,w,_,_,_,w,_,w,
+      w,w,_,w,w,w,w,w,w,w,w,w,w,w,w,w,w,_,_,w,
+      w,_,_,_,w,w,w,_,_,_,w,w,_,_,_,_,_,w,w,w,
+      w,_,_,_,w,w,w,_,_,_,_,_,_,w,_,w,_,w,w,w,
+      w,w,_,w,w,w,w,_,_,_,w,w,_,_,_,_,_,w,w,w,
+      w,w,_,_,w,w,w,w,_,w,w,w,_,w,_,w,_,w,w,w,
+      w,w,w,_,_,_,_,_,_,w,w,w,_,_,_,_,_,w,w,w,
+      w,w,w,_,_,_,w,w,_,w,w,w,w,w,_,w,w,w,w,w,
+      w,w,w,w,_,w,w,w,_,w,w,w,w,_,_,_,O,w,w,w,
+      w,_,_,_,_,w,w,w,O,w,w,w,w,_,_,_,_,w,w,w,
+      w,_,_,w,_,_,w,w,w,w,w,w,w,_,_,_,_,w,w,w,
+      w,w,_,w,w,_,_,w,w,w,w,w,w,w,_,_,w,w,w,w,
+      w,w,_,_,_,_,_,_,w,w,w,w,w,w,w,_,w,w,w,w,
+      w,w,_,w,w,_,_,_,_,w,w,w,_,_,_,_,_,_,_,w,
+      w,w,_,w,w,w,_,_,O,w,w,w,w,_,w,w,w,_,w,w,
+      w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w
     ],
 		// up to 33 x 23
 		width : 20,
@@ -604,7 +630,16 @@ var Map = function() {
 		objs : Objects()
 	};
 
+  me.spawn_points = []
+
 	me.init = function() {
+    me.data.forEach((code, i) => {
+      if (code === O /* spawn */) {
+        var y = Math.floor(i / me.width)
+        var x = i % me.width
+        me.spawn_points.push(Object.freeze({ x, y }))
+      }
+    })
 	};
 
 	me.texture = function(idx) {
@@ -619,7 +654,7 @@ var Map = function() {
 		if(x<0 || x>=me.width || y<0 || y>=me.height) {
 			return false;
 		}
-		return me.data[y*me.width + x] == -1;
+		return me.data[y*me.width + x] < 0;
 	};
 
   me.contains_sprite = function (x, y, n, self) {
@@ -902,7 +937,7 @@ var Application = function(canvasID) {
 
   const mod = (a, n) => a - Math.floor(a/n) * n
   const angle_distance = (a, b) => Math.abs(Math.min(TAU - Math.abs(a - b), Math.abs(a - b)))
-  const shadow_tint_for_z = (z) => Math.floor(Math.min(0.75, Math.max(0, 0.1 + (z * 0.12))) * 4)
+  const shadow_tint_for_z = (z) => Math.floor(Math.min(0.8, Math.max(0, 0.1 + (z * 0.12))) * 4)
   var originalXInc = 2
 	me.draw = function(dt, timeStamp) {
 		// floor / ceiling 
@@ -1209,7 +1244,7 @@ var Application = function(canvasID) {
       }
       end_x = Math.floor(end_x / xInc) * xInc
 
-      dist -= .5  // sometimes things are about to leave the z-buffer but they belong on screen
+      dist -= .15  // sometimes things are about to leave the z-buffer but they belong on screen
       if (zBuffer[start_x] < dist && zBuffer[end_x] < dist) {
         continue
       }
@@ -1235,7 +1270,7 @@ var Application = function(canvasID) {
         continue
       }
 
-      for (var col = start_x; col < end_x; col += xInc * 4) {
+      for (var col = start_x; col < end_x; col += xInc * 2) {
         if (zBuffer[col] < dist) {
           continue
         }
@@ -1247,13 +1282,13 @@ var Application = function(canvasID) {
           Math.floor((tex_start_x * sprites[i].obj.sprite.width) + tex_x),
           0,
 
-          Math.ceil( tex_chunk_width * 8 ),
+          Math.ceil( tex_chunk_width * 4 ),
           sprites[i].obj.sprite.height,
 
           col,
           start_y,
 
-          xInc * 4,
+          xInc * 2,
           Math.floor(ceiling_height * sprites[i].obj.sprite.ingame_height)
         )
       }
@@ -1326,9 +1361,32 @@ var Application = function(canvasID) {
     }
   }
 
+  me.respawn = function() {
+    var point = me.map.spawn_points[Math.floor(Math.random() * me.map.spawn_points.length)]
+    point = me.map.spawn_points[0]
+    if (me.map.is_free(point.x, point.y - 1)) {
+      player.angle = -QUARTER_TAU
+    }
+    if (me.map.is_free(point.x, point.y + 1)) {
+      player.angle = QUARTER_TAU
+    }
+    if (me.map.is_free(point.x - 1, point.y)) {
+      player.angle = HALF_TAU
+    }
+    if (me.map.is_free(point.x + 1, point.y)) {
+      player.angle = 0
+    }
+    player.angle += QUARTER_TAU / 4
+    player.angle -= (QUARTER_TAU / 2) * Math.random()
+    player.x = point.x + .5
+    player.y = point.y + .5
+    window.sendMove(player)
+  }
+
 	me.init = function() {
 		document.addEventListener("keydown", me.key_down, false);
 		document.addEventListener("keyup", me.key_up, false);
+    me.respawn()
 	};
 
 	me.init();
