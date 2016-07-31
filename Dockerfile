@@ -18,4 +18,8 @@ RUN npm install && \
 
 COPY . /code
 
+RUN cp -r js js.tmp && \
+    ./node_modules/.bin/babel --presets=es2015 --compact --out-dir js js.tmp && \
+    rm -rf js.tmp
+
 CMD [ "node", "." ]
