@@ -491,7 +491,7 @@ var Explosion = function (x, y, z) {
   me.sqRadius = me.radius * me.radius
   me.cubeRadius = me.radius * me.radius * me.radius
 
-  var blastRadius = 10
+  var blastRadius = 1.2
   var sqBlastRadius = Math.pow(blastRadius, 2)
 
   me.update = (map, dt) => {
