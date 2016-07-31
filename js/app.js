@@ -174,8 +174,6 @@ var Player = function(x, y, isenemy) {
   me.cubeRadius = me.radius * me.radius * me.radius
 
 	me.init = function() {
-
-		// precalculate these
     if (!isenemy) {
       document.addEventListener("keydown", me.key_down, false);
       document.addEventListener("keyup", me.key_up, false);
@@ -231,16 +229,24 @@ var Player = function(x, y, isenemy) {
     var prev_incr_x = me.incr_x
     var prev_incr_y = me.incr_y
     var prev_angle = me.angle
-    var change_x = Common.extrapolate_dx(me, 1) * me.speed * dt;
-    var change_y = Common.extrapolate_dy(me, 1) * me.speed * dt;
+    var now_angle = Common.extrapolate_angle(me, 1)
+    var change_x = Math.cos(now_angle) * me.speed * dt;
+    var change_y = Math.sin(now_angle) * me.speed * dt;
+
+    var change_sx = Math.cos(now_angle - QUARTER_TAU) * me.speed * dt;
+    var change_sy = Math.sin(now_angle - QUARTER_TAU) * me.speed * dt;
 
     var joystickX = Math.min(Math.max(-1, joystick.deltaX() / 40), 1)
     var joystickY = Math.min(Math.max(-1, joystick.deltaY() / 40), 1)
 
+    var rjoystickX = Math.min(Math.max(-1, rjoystick.deltaX() / 40), 1)
+
     var up = me.up || (joystickY < 0 && -joystickY)
     var down = me.down || (joystickY > 0 && joystickY)
-    var left = me.left || (joystickX < 0 && -joystickX)
-    var right = me.right || (joystickX > 0 && joystickX)
+    var sleft = me.sleft || (joystickX < 0 && -joystickX)
+    var sright = me.sright || (joystickX > 0 && joystickX)
+    var left = me.left || (rjoystickX < 0 && -rjoystickX)
+    var right = me.right || (rjoystickX > 0 && rjoystickX)
 
     me.incr_x = 0
     me.incr_y = 0
@@ -259,6 +265,24 @@ var Player = function(x, y, isenemy) {
       }
       if(map.is_free(Math.floor(me.x), Math.floor(me.y - change_y))) {
         me.incr_y -= change_y * down;
+      }
+    }
+
+    if(sleft) {
+      if(map.is_free(Math.floor(me.x + me.incr_x + change_sx * sleft), Math.floor(me.y + me.incr_y))) {
+        me.incr_x += change_sx * sleft;
+      }
+      if(map.is_free(Math.floor(me.x + me.incr_x), Math.floor(me.y + me.incr_y + change_sy * sleft))) {
+        me.incr_y += change_sy * sleft;
+      }
+    }
+
+    if(sright) {
+      if(map.is_free(Math.floor(me.x + me.incr_x - change_sx * sright), Math.floor(me.y + me.incr_y))) {
+        me.incr_x -= change_sx * sright;
+      }
+      if(map.is_free(Math.floor(me.x + me.incr_x), Math.floor(me.y + me.incr_y - change_sy * sright))) {
+        me.incr_y -= change_sy * sright;
       }
     }
 
@@ -315,13 +339,13 @@ var Player = function(x, y, isenemy) {
   }
 
 	me.key_down = function(event) {
-		// left
+		// sleft
 		if(event.keyCode == 37) {
-			me.left = true;
+			me.sleft = true;
 		}
-    // right
+    // sright
     if(event.keyCode == 39) {
-			me.right = true;
+			me.sright = true;
 		}
     // up
     if(event.keyCode == 38) {
@@ -334,13 +358,13 @@ var Player = function(x, y, isenemy) {
 	};
 
 	me.key_up = function(event) {
-		// left
+		// sleft
 		if(event.keyCode == 37) {
-			me.left = false;
+			me.sleft = false;
 		}
-    // right
+    // sright
     if(event.keyCode == 39) {
-			me.right = false;
+			me.sright = false;
 		}
     // up
     if(event.keyCode == 38) {
@@ -426,7 +450,7 @@ var Grenade = function(x, y, isenemy) {
       if (bounce_back_x && bounce_back_y) {
         if (!map.is_free(Math.floor(me.x - me.incr_x), me.y)) {
           bounce_back_x = false
-        } else if (!map.is_free(me.x, Math.floor(me.y - me.incr_y))) {
+        } else if (!map.is_free(Math.floor(me.x), Math.floor(me.y - me.incr_y))) {
           bounce_back_y = false
         }
       }
@@ -676,6 +700,8 @@ var Map = function() {
 	};
 
 	me.is_free = function(x, y) {
+    x = Math.floor(x)
+    y = Math.floor(y)
 		if(x<0 || x>=me.width || y<0 || y>=me.height) {
 			return false;
 		}
@@ -731,7 +757,8 @@ var Foreground = function(player, canvas_element) {
   Object.defineProperty(window, 'touchIdx', { get: ()=> touchIdx})
   function onTouchStart (e) {
     var touch = e.type === 'touchstart' ? e.changedTouches[0] : e
-    if (touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer) {
+    if (touch.clientX < document.documentElement.clientWidth * widthOfTheJoystickContainer ||
+       touch.clientY < document.documentElement.clientHeight * 0.5) {
       return
     }
     if (touchIdx !== null || player.fire_state !== 'idle' && player.fire_state !== 'fired' && player.fire_state !== 'firing') {
@@ -940,7 +967,12 @@ var Application = function(canvasID) {
     me.canvas.height = me._height;
     me.canvas.style.background = "rgb(0, 0, 0)";
 
-    me.ctx.webkitImageSmoothingEnabled = me.ctx.imageSmoothingEnabled = me.ctx.mozImageSmoothingEnabled = me.ctx.oImageSmoothingEnabled = false;
+    if ('imageSmoothingEnabled' in me.ctx)
+      me.ctx.imageSmoothingEnabled = false
+    else if ('webkitImageSmoothingEnabled' in me.ctx)
+      me.ctx.webkitImageSmoothingEnabled = false
+    else if ('mozImageSmoothingEnabled' in me.ctx)
+      me.ctx.mozImageSmoothingEnabled = false
 
     zBufferPassCacheKey = ''  // clear z-buffer cache
 	};
@@ -1354,25 +1386,6 @@ var Application = function(canvasID) {
     me.loop(0)
 	};
 
-	me.key_down = function(event) {
-
-		// fullscreen
-		if(event.keyCode == 70) {
-			if(me.canvas.webkitRequestFullScreen) {
-				me.canvas.webkitRequestFullScreen(true);
-				return;
-			}
-			if(me.canvas.mozRequestFullScreen) {
-				me.canvas.mozRequestFullScreen();
-				return;
-			}
-			if(me.canvas.requestFullScreen) {
-				me.canvas.requestFullScreen();
-				return;
-			}
-		}
-	};
-
   me.update = function(dt) {
     me.player.update(me.map, dt);
     for (var i = 0; i < me.map.objs.objs.length; i++) {
@@ -1408,8 +1421,6 @@ var Application = function(canvasID) {
   }
 
 	me.init = function() {
-		document.addEventListener("keydown", me.key_down, false);
-		document.addEventListener("keyup", me.key_up, false);
     me.respawn()
 	};
 

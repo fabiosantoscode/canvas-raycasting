@@ -8,7 +8,7 @@ var ws = require('ws')
 
 var statics = ecstatic({ root: __dirname })
 var server = http.createServer((req, res) => {
-  var path = url.parse(req.url).path
+  var path = url.parse(req.url).pathname
   if (path === '/' || path.startsWith('/js') || path.startsWith('/img'))
     return statics(req, res)
 })
@@ -52,7 +52,7 @@ wss.on('connection', ws => {
 })
 
 var port = +process.env['PORT'] || 8080
-server.listen(port, '0.0.0.0').on('listening', function () {
+server.listen(port).on('listening', function () {
   console.log('server listening on port ' + port)
 })
 

@@ -55,20 +55,10 @@
             color: white;
             background: rgba(0,0,0,0.5);
         }
-        #joystickContainer {
-            width: 60vw;
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            z-index: 1;
-        }
-
 	</style>
 	</head>
 	<body>
 		<canvas id="myCanvas"></canvas>
-        <div id="joystickContainer"></div>
         <div id="fixedContainer">
             <a href="#" id="fullScreen">fullscreen</a>
             <a href="#" id="options">options</a>
@@ -88,6 +78,17 @@
               ).call(document.body)
             }
           })
+          function onFullscreenChange() {
+            if ('screen' in window) {
+              var lockOrientation = screen.lockOrientation || screen.webkitLockOrientation || screen.mozLockOrientation || screen.msLockOrientation
+              if (lockOrientation)
+                lockOrientation.call(screen, 'landscape-primary')
+            }
+          }
+          document.addEventListener('fullscreenchange', onFullscreenChange)
+          document.addEventListener('mozfullscreenchange', onFullscreenChange)
+          document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+          onerror = alert.bind(window)
         </script>
 	</body>
 </html>
