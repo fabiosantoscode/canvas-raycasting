@@ -8,20 +8,39 @@ window.addEventListener('load', () => {
     sock.addEventListener('open', () => { resolve(sock) })
 
     sock.addEventListener('message', (message) => {
+      message = JSON.parse(message.data)
       // console.log(message)
-      var data = JSON.parse(message.data)
-      if (data.id === app.player.id) {
-        // It's me, I know
-        return
+      if (message.msgType === 'damage') {
+        return process_damage(message)
       }
-      var entity = app.map.objs.objs.find(o => o.id === data.id)
-      if (!entity) {
-        var Klass = data.type === 'grenade' ? Grenade : Player
-        app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))
-      }
-      entity.load(data)
+      process_update(message)
     })
   })
+
+  function process_damage(message) {
+    for (var i = 0; i < app.map.objs.length; i++) {
+      if (message.id === app.map.objs[i].id) {
+        app.map.objs.remove(app.map.objs[i])
+        i--
+      }
+    }
+    if (message.id === app.player.id) {
+      app.respawn()
+    }
+  }
+
+  function process_update(message) {
+    if (message.id === app.player.id) {
+      // It's me, I know
+      return
+    }
+    var entity = app.map.objs.objs.find(o => o.id === message.id)
+    if (!entity) {
+      var Klass = message.type === 'grenade' ? Grenade : Player
+      app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))
+    }
+    entity.load(message)
+  }
 
   var _lastSend = Date.now()
   var _timeout = null
@@ -34,9 +53,16 @@ window.addEventListener('load', () => {
       return
     }
     _lastSend = Date.now()
-    sock.then(sock => { sock.send(JSON.stringify(player.save())) }).catch(e => console.error(e))
+    send(player.save())
   }
   window.sendShot = function (_grenade) {
-    sock.then(sock => { sock.send(JSON.stringify(_grenade.save())) }).catch(e => console.error(e))
+    send(_grenade.save())
+  }
+  window.sendDamage = function(id) {
+    send({ id: id, msgType: 'damage' })
+  }
+
+  function send(msg) {
+    sock.then(sock => { sock.send(JSON.stringify(msg)) }).catch(e => { console.error(e) })
   }
 })

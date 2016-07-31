@@ -359,6 +359,7 @@ var Player = function(x, y, isenemy) {
 
 var Grenade = function(x, y, isenemy) {
   var me = {
+    id: 'grenade-' + Math.random(),
     x: x,
     y: y,
     z: 1,
@@ -447,7 +448,6 @@ var Grenade = function(x, y, isenemy) {
   }
 
   me.save = function (data) {
-    me.id = me.id || 'grenade-' + Math.random()
     return {
       type: 'grenade',
       id: me.id,
@@ -485,12 +485,24 @@ var Explosion = function (x, y, z) {
     radius: 0.3,
     time_left: 1,
     animation_start: app.latest_animation_timestamp,
+    first_update: true,
   }
 
   me.sqRadius = me.radius * me.radius
   me.cubeRadius = me.radius * me.radius * me.radius
 
+  var blastRadius = 10
+  var sqBlastRadius = Math.pow(blastRadius, 2)
+
   me.update = (map, dt) => {
+    if (me.first_update) {
+      me.first_update = false
+      var near = app.map.objs.find_near(me.x, me.y, sqBlastRadius)
+      for (var i = 0; i < near.length; i++) if (near[i] !== me) {
+        window.sendDamage(near[i].id)
+        app.map.objs.remove(near[i])
+      }
+    }
     me.time_left -= dt
     if (me.time_left <= 0) {
       app.map.objs.remove(me)
@@ -581,6 +593,17 @@ var Objects = function() {
 	me.get_texture = function(idx) {
 		return me.textures[idx];
 	};
+
+  var find_near_cache = []
+  me.find_near = function (x, y, sqDist) {
+    find_near_cache.length = 0
+    for (var i = 0; i < me.objs.length; i++) {
+      if (Common.sqDistance(me.objs[i], x, y) < sqDist) {
+        find_near_cache.push(me.objs[i])
+      }
+    }
+    return find_near_cache
+  }
 
   me.objs.push(Player(5, 1, 'isenemy'))
 
