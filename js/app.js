@@ -7,6 +7,56 @@ var HALF_TAU = Math.PI
 var QUARTER_TAU = Math.PI / 2
 const round2 = n => Math.round(n * 100) / 100
 
+// from https://github.com/kayellpeee/hsl_rgb_converter/blob/master/converter.js
+var hslToRgb = function(hue, saturation, lightness){
+  // based on algorithm from http://en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB
+  if( hue == undefined ){
+    return [0, 0, 0];
+  }
+
+  var chroma = (1 - Math.abs((2 * lightness) - 1)) * saturation;
+  var huePrime = hue / 60;
+  var secondComponent = chroma * (1 - Math.abs((huePrime % 2) - 1));
+
+  huePrime = Math.floor(huePrime);
+  var red;
+  var green;
+  var blue;
+
+  if( huePrime === 0 ){
+    red = chroma;
+    green = secondComponent;
+    blue = 0;
+  }else if( huePrime === 1 ){
+    red = secondComponent;
+    green = chroma;
+    blue = 0;
+  }else if( huePrime === 2 ){
+    red = 0;
+    green = chroma;
+    blue = secondComponent;
+  }else if( huePrime === 3 ){
+    red = 0;
+    green = secondComponent;
+    blue = chroma;
+  }else if( huePrime === 4 ){
+    red = secondComponent;
+    green = 0;
+    blue = chroma;
+  }else if( huePrime === 5 ){
+    red = chroma;
+    green = 0;
+    blue = secondComponent;
+  }
+
+  var lightnessAdjustment = lightness - (chroma / 2);
+  red += lightnessAdjustment;
+  green += lightnessAdjustment;
+  blue += lightnessAdjustment;
+
+  return [Math.floor(red * 255), Math.floor(green * 255), Math.floor(blue * 255)];
+};
+
 var Textures = (function() {
   var ver = 1, // increase this for refreshing the cache
     i,
@@ -119,19 +169,48 @@ var Textures = (function() {
         })
       }
       if (files[i].shaded) {
-        const tints = [ 0.25, 0.5, 0.75 ]
+        const tints = [ 0.25, 0.35, 0.5 ]
         variations.forEach(variation => {
           var tex = me.textures[i]
           if (variation !== '') { tex = tex[variation] }
-          tex.shaded = tints.map(tint => preprocess_image(tex, ctx => {
-            ctx.drawImage(tex, 0, 0)
-            ctx.globalCompositeOperation = 'color-burn'
-            var tintPercent = (80 - (tint * 80))
-            var saturation = tint * 17
-            ctx.fillStyle = 'hsla(0, '+saturation+'%, '+tintPercent+'%, '+tint+')'
-            ctx.fillRect(0, 0, tex.width, tex.height)
-          }))
+          tex.shaded = tints.map(tint => multiply_image_by_tint(tex, tint))
         })
+        function multiply_image_by_tint(tex, tint) {
+          return preprocess_image(tex, ctx => {
+            ctx.drawImage(tex, 0, 0)
+            var imageData = ctx.getImageData(0, 0, tex.width, tex.height)
+            var tintPercent = (80 - (tint * 80))
+            var saturation = tint * 19
+            var [ colorR, colorG, colorB ] = hslToRgb(320, saturation / 255, tintPercent / 100)
+            var A = tint
+
+            colorR = colorR / 255
+            colorG = colorG / 255
+            colorB = colorB / 255
+
+            function colorBurn(bottomColor, topColor, alpha) {
+              var original = bottomColor
+
+              // https://en.wikipedia.org/wiki/Blend_modes
+              // The Color Burn mode divides the inverted bottom layer by the top layer, and then inverts the result
+              bottomColor = 1 - bottomColor
+              bottomColor /= topColor
+              bottomColor = 1 - bottomColor
+
+              bottomColor = (bottomColor * alpha) + original * (1 - alpha)
+
+              return Math.floor(bottomColor * 255)
+            }
+
+            for (var i = 0; i < imageData.data.length; i+=4) {
+              imageData.data[i] = colorBurn(imageData.data[i] / 255, colorR, A)
+              imageData.data[i + 1] = colorBurn(imageData.data[i + 1] / 255, colorG, A)
+              imageData.data[i + 2] = colorBurn(imageData.data[i + 2] / 255, colorB, A)
+            }
+
+            ctx.putImageData(imageData, 0, 0)
+          })
+        }
       }
     })
   }
