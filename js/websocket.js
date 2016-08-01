@@ -1,13 +1,27 @@
 'use strict'
 
-window.addEventListener('load', () => {
+;(function () {
   var myId = Math.random()
 
-  var sock = new Promise(resolve => {
-    var sock = new WebSocket('ws://' + location.host + '/')
-    sock.addEventListener('open', () => { resolve(sock) })
+  var sock_ready = false
+  var sock_instance
+  var sock_queue = []
+  var sock = (fn) => {
+    if (sock_ready) {
+      return fn(sock_instance)
+    }
+    sock_queue.push(fn)
+  }
 
-    sock.addEventListener('message', (message) => {
+  window.addEventListener('load', () => {
+    const host = window.IS_CORDOVA ? '139.59.189.9' : location.host
+    sock_instance = new WebSocket('ws://' + host + '/')
+    sock_instance.addEventListener('open', () => {
+      sock_ready = true
+      while(sock_queue.length) sock_queue.pop()(sock_instance)
+    })
+
+    sock_instance.addEventListener('message', (message) => {
       message = JSON.parse(message.data)
       // console.log(message)
       if (message.msgType === 'damage') {
@@ -30,6 +44,7 @@ window.addEventListener('load', () => {
   }
 
   function process_update(message) {
+    if (!window.app) { return }
     if (message.id === app.player.id) {
       // It's me, I know
       return
@@ -63,6 +78,6 @@ window.addEventListener('load', () => {
   }
 
   function send(msg) {
-    sock.then(sock => { sock.send(JSON.stringify(msg)) }).catch(e => { console.error(e) })
+    sock(sock => { sock.send(JSON.stringify(msg)) })
   }
-})
+}())

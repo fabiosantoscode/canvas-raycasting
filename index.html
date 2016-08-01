@@ -4,14 +4,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 	<title>Dungeon</title>
 	<style type="text/css">
+        * {
+            -webkit-tap-highlight-color: rgba(0,0,0,0); /* make transparent link selection, adjust last value opacity 0 to 1.0 */
+        }
         body, html { margin: 0; padding: 0; }
 		body {
+            -webkit-touch-callout: none;                /* prevent callout to copy image, etc when tap to hold */
+            -webkit-text-size-adjust: none;             /* prevent webkit from resizing text to fit */
+            -webkit-user-select: none;                  /* prevent copy paste, to allow, change 'none' to 'text' */
 			background-color: #000;
 			color: #fff;
 			text-align: center;
 			font-family: 'MedievalSharp';
-            margin: 0;
-            padding: 0;
             overflow: hidden;
 		}
 
@@ -56,6 +60,7 @@
             background: rgba(0,0,0,0.5);
         }
 	</style>
+    <!--CORDOVA_SCRIPTS-->
 	</head>
 	<body>
 		<canvas id="myCanvas"></canvas>
@@ -69,7 +74,7 @@
         <script type="text/javascript" src="js/websocket.js"></script>
         <script type="text/javascript" src="js/app.js"></script>
         <script>
-          document.getElementById('fullScreen').addEventListener('click', ( )=> {
+          document.getElementById('fullScreen').addEventListener('click', function() {
             if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
               (
                 document.body.mozRequestFullScreen ||
@@ -88,6 +93,7 @@
           document.addEventListener('fullscreenchange', onFullscreenChange)
           document.addEventListener('mozfullscreenchange', onFullscreenChange)
           document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+          onFullscreenChange()
         </script>
 	</body>
 </html>

@@ -1,5 +1,7 @@
 'use strict'
 
+var requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || setTimeout
+
 var TAU = Math.PI * 2
 var HALF_TAU = Math.PI
 var QUARTER_TAU = Math.PI / 2
@@ -1359,6 +1361,7 @@ var Application = function(canvasID) {
   var TPSth = 1/TPS
   var TPSthInMilliseconds = (1000 / TPS)
 	me.loop = function(timeStamp) {
+		if (timeStamp === undefined) timeStamp = Date.now()
 		requestAnimationFrame(me.loop);
 
     if (lastUpdate === null) {
