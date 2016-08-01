@@ -85,3 +85,6 @@ resources/signing
 www/index.html
 www/js
 www/img
+
+# the android platform entirely, fuck it
+platforms/android

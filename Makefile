@@ -6,6 +6,10 @@ deploy:
 	git diff --quiet || (echo "uncommitted changes!" && exit 1)
 	git push dokku master
 
+bootstrap-phonegap:
+	cd phonegap/platforms/android
+	npm install
+
 android:
 	cp -r img phonegap/www
 	sed -e '/<\!--CORDOVA_SCRIPTS-->/ r cordova-scripts.html' < index.html > phonegap/www/index.html
