@@ -38,8 +38,8 @@ function room() {
 }
 
 var rooms = (function push(arr, c) {
-  if (!--c) { return [] }
-  return arr.concat([room()])
+  if (!c) { return [] }
+  return arr.concat([room()]).concat(push(arr, --c))
 })([], 100)
 
 wss.on('connection', ws => {
