@@ -13,10 +13,17 @@
     sock_queue.push(fn)
   }
 
-  window.addEventListener('load', () => {
+  window.addEventListener('load', connect)
+
+  function connect() {
+    if (sock_instance != null) {
+      // already connecting
+      return
+    }
     const host = window.IS_CORDOVA ? '139.59.189.9' : location.host
     sock_instance = new WebSocket('ws://' + host + '/')
     sock_instance.addEventListener('open', () => {
+      console.log('connected')
       sock_ready = true
       while(sock_queue.length) sock_queue.pop()(sock_instance)
     })
@@ -29,7 +36,20 @@
       }
       process_update(message)
     })
-  })
+
+    sock_instance.addEventListener('error', e => {
+      console.error(e)
+      sock_instance.close()
+      sock_instance = null
+      connect()
+    })
+
+    sock_instance.addEventListener('close', _ => {
+      console.log('disconnected')
+      sock_instance = null
+      connect()
+    })
+  }
 
   function process_damage(message) {
     for (var i = 0; i < app.map.objs.length; i++) {
