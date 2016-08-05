@@ -49,7 +49,13 @@
       // It's me, I know
       return
     }
-    var entity = app.map.objs.objs.find(o => o.id === message.id)
+    var entity
+    for (var i = 0; i < app.map.objs.objs.length; i++) {
+      if (app.map.objs.objs[i].id === message.id) {
+        entity = app.map.objs.objs[i]
+        break
+      }
+    }
     if (!entity) {
       var Klass = message.type === 'grenade' ? Grenade : Player
       app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))

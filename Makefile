@@ -6,9 +6,9 @@ deploy:
 	git diff --quiet || (echo "uncommitted changes!" && exit 1)
 	git push dokku master
 
-bootstrap-phonegap:
-	cd phonegap/platforms/android
+bootstrap:
 	npm install
+	cd phonegap && phonegap install android
 
 android:
 	cp -r img phonegap/www
