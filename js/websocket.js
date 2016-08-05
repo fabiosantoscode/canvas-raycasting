@@ -40,15 +40,18 @@
     sock_instance.addEventListener('error', e => {
       console.error(e)
       sock_instance.close()
-      sock_instance = null
-      connect()
+      reconnect()
     })
 
     sock_instance.addEventListener('close', _ => {
       console.log('disconnected')
-      sock_instance = null
-      connect()
+      reconnect()
     })
+  }
+
+  function reconnect() {
+    sock_instance = null
+    setTimeout(() => { connect() }, 1000)
   }
 
   function process_damage(message) {
