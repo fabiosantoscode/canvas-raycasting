@@ -2,6 +2,8 @@
 
 var requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || setTimeout
 
+var TYPE_PLAYER = 6
+var TYPE_GRENADE = 7
 var TAU = Math.PI * 2
 var HALF_TAU = Math.PI
 var QUARTER_TAU = Math.PI / 2
@@ -220,7 +222,7 @@ var Textures = (function() {
 
 var Player = function(x, y, isenemy) {
   var me = {
-    id: Math.random(),
+    id: (Math.random() * 1000000)|0,
     // position
     x : x+0.5,
     y : y+0.5, // center in the tile
@@ -264,13 +266,13 @@ var Player = function(x, y, isenemy) {
 	};
 
   me.load = function (data) {
-    for (var key in data) if (key !== 'sprite' && key !== 'type') {
+    for (var key in data) if (key !== 'sprite' && key !== 't') {
       me[key] = data[key]
     }
   }
 
   var _saved = Object.seal({
-    type: 'player',
+    t: TYPE_PLAYER,
     id: 0,
     x: 0,
     y: 0,
@@ -287,7 +289,7 @@ var Player = function(x, y, isenemy) {
     _saved.incr_x = round2(me.incr_x)
     _saved.incr_y = round2(me.incr_y)
     _saved.incr_angle = round2(me.incr_angle)
-    return _saved
+    return JSON.stringify(_saved)
   }
 
 	me.update = function(map, dt) {
@@ -464,7 +466,7 @@ var Player = function(x, y, isenemy) {
 
 var Grenade = function(x, y, isenemy) {
   var me = {
-    id: 'grenade-' + Math.random(),
+    id: 'grenade-' + ((Math.random()*1000000)|0),
     x: x,
     y: y,
     z: 1,
@@ -552,20 +554,28 @@ var Grenade = function(x, y, isenemy) {
     app.map.objs.remove(me)
   }
 
+  var _saved = Object.seal({
+    t: TYPE_GRENADE,
+    id: 0,
+    x: 0,
+    y: 0,
+    z: 0,
+    incr_x: 0,
+    incr_y: 0,
+  })
   me.save = function (data) {
-    return {
-      type: 'grenade',
-      id: me.id,
-      x: round2(me.x),
-      y: round2(me.y),
-      z: round2(me.z),
-      incr_x: round2(me.incr_x),
-      incr_y: round2(me.incr_y),
-    }
+    _saved.t = TYPE_GRENADE
+    _saved.id = me.id
+    _saved.x = round2(me.x)
+    _saved.y = round2(me.y)
+    _saved.z = round2(me.z)
+    _saved.incr_x = round2(me.incr_x)
+    _saved.incr_y = round2(me.incr_y)
+    return JSON.stringify(_saved)
   }
 
   me.load = function (data) {
-    for (var key in data) if (key !== 'sprite' && key !== 'type') {
+    for (var key in data) if (key !== 'sprite' && key !== 't') {
       me[key] = data[key]
     }
   }

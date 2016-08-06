@@ -6,11 +6,11 @@
   var sock_ready = false
   var sock_instance
   var sock_queue = []
-  var sock = (fn) => {
+  var send = (msg) => {
     if (sock_ready) {
-      return fn(sock_instance)
+      return sock_instance.send(msg)
     }
-    sock_queue.push(fn)
+    sock_queue.push(msg)
   }
 
   window.addEventListener('load', connect)
@@ -25,7 +25,7 @@
     sock_instance.addEventListener('open', () => {
       console.log('connected')
       sock_ready = true
-      while(sock_queue.length) sock_queue.pop()(sock_instance)
+      while(sock_queue.length) send(sock_queue.pop())
     })
 
     sock_instance.addEventListener('message', (message) => {
@@ -80,7 +80,7 @@
       }
     }
     if (!entity) {
-      var Klass = message.type === 'grenade' ? Grenade : Player
+      var Klass = message.t === TYPE_GRENADE ? Grenade : Player
       app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))
     }
     entity.load(message)
@@ -104,9 +104,5 @@
   }
   window.sendDamage = function(id) {
     send({ id: id, msgType: 'damage' })
-  }
-
-  function send(msg) {
-    sock(sock => { sock.send(JSON.stringify(msg)) })
   }
 }())
