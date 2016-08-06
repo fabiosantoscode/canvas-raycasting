@@ -47,6 +47,10 @@
 			text-decoration: none;
 			color: yellow;
 		}
+
+        .tutorial-mode #fixedContainer {
+            display: none;
+        }
         #fixedContainer {
             top: 0;
             left: 0;
@@ -58,6 +62,31 @@
             padding: 1em;
             color: white;
             background: rgba(0,0,0,0.5);
+        }
+
+        .tutorial-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 7vmin;
+            box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+        }
+        @media screen and (min-aspect-ratio: 10 / 6) {
+            .tutorial-image {
+                height: 100vh;
+                width: 166.66vh;
+                left: calc((100vw - 166.66vh) / 2);
+            }
+        }
+        @media screen and (max-aspect-ratio: 10 / 6) {
+            .tutorial-image {
+                width: 100%;
+                height: 60vw;
+                top: calc((100vh - 60vw) / 2);
+            }
         }
 	</style>
     <!--CORDOVA_SCRIPTS-->

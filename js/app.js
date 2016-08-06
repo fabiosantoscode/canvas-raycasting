@@ -59,6 +59,27 @@ var hslToRgb = function(hue, saturation, lightness){
   return [Math.floor(red * 255), Math.floor(green * 255), Math.floor(blue * 255)];
 };
 
+var Tutorial = (function () {
+  var me = {
+    tutorialImg: null,
+    onend: () => { throw new Error('attach an onstart function to the Tutorial') },
+    start: () => {
+      me.tutorialImg = Textures.textures[6].cloneNode()
+      me.tutorialImg.className = 'tutorial-image'
+      document.body.appendChild(me.tutorialImg)
+      document.body.className += ' tutorial-mode'
+      me.tutorialImg.onclick = me.end
+    },
+    end: () => {
+      document.body.className = document.body.className.replace(' tutorial-mode', '')
+      me.tutorialImg.parentNode.removeChild(me.tutorialImg)
+      me.onend()
+    },
+  };
+
+  return me
+}())
+
 var Textures = (function() {
   var ver = 1, // increase this for refreshing the cache
     i,
@@ -112,6 +133,9 @@ var Textures = (function() {
           frames: [ 1, 2, 3 ].map(n => 'img/racket-'+n+'.png'),
           loop: false,
         }
+      },
+      {
+        src: 'img/tutorial.png',
       },
     ];
 
@@ -1524,18 +1548,21 @@ var Application = function(canvasID) {
 var app
 window.onload = function () {
   Textures.init()
-	app = Application("myCanvas");
-	app.run();
+  Tutorial.start()
+  Tutorial.onend = function ()  {
+    app = Application("myCanvas");
+    app.run();
 
-  if (/development/.test(location.hash)) {
-    var _update = app.player.update
-    app.player.update = function ()  {
-      _update.apply(this, arguments)
-      localStorage.savedPosition = JSON.stringify(app.player)
-    }
-    if (localStorage.savedPosition) {
-      var savedPos = JSON.parse( localStorage.savedPosition )
-      app.player.load(savedPos)
+    if (/development/.test(location.hash)) {
+      var _update = app.player.update
+      app.player.update = function ()  {
+        _update.apply(this, arguments)
+        localStorage.savedPosition = JSON.stringify(app.player)
+      }
+      if (localStorage.savedPosition) {
+        var savedPos = JSON.parse( localStorage.savedPosition )
+        app.player.load(savedPos)
+      }
     }
   }
 };
