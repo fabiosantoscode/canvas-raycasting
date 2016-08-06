@@ -22,3 +22,21 @@ android-watch:
 		--ext js,html \
 		--exec 'make android'
 
+apk:
+	cd phonegap && \
+		phonegap build android --release
+	jarsigner -verbose \
+		-sigalg SHA1withRSA \
+		-digestalg SHA1 \
+		-keystore keys/keystore \
+		-tsa http://timestamp.digicert.com \
+		phonegap/platforms/android/build/outputs/apk/android-release-unsigned.apk \
+		fabio
+	echo running jarsigner just to make sure
+	jarsigner -verify -verbose -certs \
+		phonegap/platforms/android/build/outputs/apk/android-release-unsigned.apk
+	zipalign -v 4 \
+		phonegap/platforms/android/build/outputs/apk/android-release-unsigned.apk \
+		android.apk
+	echo created android.apk
+
