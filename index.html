@@ -70,12 +70,16 @@
             left: 0;
             right: 0;
             bottom: 0;
-            padding: 7vmin;
+            max-width: 60%;
+            margin: 0 auto;
             box-sizing: border-box;
             -webkit-box-sizing: border-box;
         }
         @media screen and (min-aspect-ratio: 10 / 6) {
             .tutorial-image {
+                margin: unset;
+                max-width: unset;
+                padding: 7vmin;
                 height: 100vh;
                 width: 166.66vh;
                 left: calc((100vw - 166.66vh) / 2);
@@ -83,6 +87,9 @@
         }
         @media screen and (max-aspect-ratio: 10 / 6) {
             .tutorial-image {
+                margin: unset;
+                max-width: unset;
+                padding: 7vmin;
                 width: 100%;
                 height: 60vw;
                 top: calc((100vh - 60vw) / 2);
