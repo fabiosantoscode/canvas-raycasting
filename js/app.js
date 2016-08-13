@@ -4,6 +4,7 @@ var requestAnimationFrame = window.requestAnimationFrame || window.webkitRequest
 
 var TYPE_PLAYER = 6
 var TYPE_GRENADE = 7
+var TYPE_BOT = 8
 var TAU = Math.PI * 2
 var HALF_TAU = Math.PI
 var QUARTER_TAU = Math.PI / 2
@@ -244,251 +245,6 @@ var Textures = (function() {
   return me
 })();
 
-var Player = function(x, y, isenemy) {
-  var me = {
-    type: Player,
-    id: (Math.random() * 1000000)|0,
-    // position
-    x : x+0.5,
-    y : y+0.5, // center in the tile
-    z : 0,
-    angle: 0,
-    // the rate at which X and Y are being changed this frame
-    incr_x: 0,
-    incr_y: 0,
-    incr_z: 0,
-    incr_angle: 0,
-
-    speed: 2,
-    rotspeed: 2,
-
-    up : false,
-    down : false,
-    right : false,
-    left : false,
-
-    sprite : Textures.textures[0],
-    radius : 1,
-
-    own_grenade_x: 0,
-    own_grenade_y: 0,
-
-    fire_state: 'idle',
-    fire_last: 0,
-    fire_speed: 250,
-    fire_cooldown: 1000,
-  };
-  me.sqRadius = me.radius * me.radius
-  me.cubeRadius = me.radius * me.radius * me.radius
-
-  me.init = function() {
-    if (!isenemy) {
-      document.addEventListener("keydown", me.key_down, false);
-      document.addEventListener("keyup", me.key_up, false);
-    }
-
-    Object.seal(me)
-  };
-
-  me.load = function (data) {
-    for (var key in data) if (key !== 'sprite' && key !== 't') {
-      me[key] = data[key]
-    }
-  }
-
-  var _saved = Object.seal({
-    t: TYPE_PLAYER,
-    id: 0,
-    x: 0,
-    y: 0,
-    angle: 0,
-    incr_x: 0,
-    incr_y: 0,
-    incr_angle: 0,
-  })
-  me.save = function (data) {
-    _saved.id = me.id
-    _saved.x = round2(me.x)
-    _saved.y = round2(me.y)
-    _saved.angle = round2(me.angle)
-    _saved.incr_x = round2(me.incr_x)
-    _saved.incr_y = round2(me.incr_y)
-    _saved.incr_angle = round2(me.incr_angle)
-    return JSON.stringify(_saved)
-  }
-
-  me.update = function(map, dt) {
-
-    me.x += me.incr_x
-    me.y += me.incr_y
-    me.angle += me.incr_angle
-    me.angle %= Math.PI * 2
-    if (me.angle < 0) {
-      me.angle += Math.PI * 2
-    }
-
-    if (!isenemy) {
-      me.update_human_player(map, dt)
-    }
-
-  };
-
-  me.update_human_player = (map, dt) => {
-    var prev_incr_x = me.incr_x
-    var prev_incr_y = me.incr_y
-    var prev_angle = me.angle
-    var now_angle = Common.extrapolate_angle(me, 1)
-    var change_x = Math.cos(now_angle) * me.speed * dt;
-    var change_y = Math.sin(now_angle) * me.speed * dt;
-
-    var change_sx = Math.cos(now_angle - QUARTER_TAU) * me.speed * dt;
-    var change_sy = Math.sin(now_angle - QUARTER_TAU) * me.speed * dt;
-
-    var joystickX = Math.min(Math.max(-1, joystick.deltaX() / 40), 1)
-    var joystickY = Math.min(Math.max(-1, joystick.deltaY() / 40), 1)
-
-    var rjoystickX = Math.min(Math.max(-1, rjoystick.deltaX() / 40), 1)
-
-    var up = me.up || (joystickY < 0 && -joystickY)
-    var down = me.down || (joystickY > 0 && joystickY)
-    var sleft = me.sleft || (joystickX < 0 && -joystickX)
-    var sright = me.sright || (joystickX > 0 && joystickX)
-    var left = me.left || (rjoystickX < 0 && -rjoystickX)
-    var right = me.right || (rjoystickX > 0 && rjoystickX)
-
-    me.incr_x = 0
-    me.incr_y = 0
-    if(up) {
-      if(map.is_free(Math.floor(me.x + change_x), Math.floor(me.y))) {
-        me.incr_x += change_x * up;
-      }
-      if(map.is_free(Math.floor(me.x), Math.floor(me.y + change_y))) {
-        me.incr_y += change_y * up;
-      }
-    }
-
-    if(down) {
-      if(map.is_free(Math.floor(me.x - change_x), Math.floor(me.y))) {
-        me.incr_x -= change_x * down;
-      }
-      if(map.is_free(Math.floor(me.x), Math.floor(me.y - change_y))) {
-        me.incr_y -= change_y * down;
-      }
-    }
-
-    if(sleft) {
-      if(map.is_free(Math.floor(me.x + me.incr_x + change_sx * sleft), Math.floor(me.y + me.incr_y))) {
-        me.incr_x += change_sx * sleft;
-      }
-      if(map.is_free(Math.floor(me.x + me.incr_x), Math.floor(me.y + me.incr_y + change_sy * sleft))) {
-        me.incr_y += change_sy * sleft;
-      }
-    }
-
-    if(sright) {
-      if(map.is_free(Math.floor(me.x + me.incr_x - change_sx * sright), Math.floor(me.y + me.incr_y))) {
-        me.incr_x -= change_sx * sright;
-      }
-      if(map.is_free(Math.floor(me.x + me.incr_x), Math.floor(me.y + me.incr_y - change_sy * sright))) {
-        me.incr_y -= change_sy * sright;
-      }
-    }
-
-    // If we're pressing to turn, don't smooth out curves. Turn sharply.
-    me.incr_angle = 0
-
-    if(left) {
-      me.incr_angle -= me.rotspeed * dt * left
-    }
-
-    if(right) {
-      me.incr_angle += me.rotspeed * dt * right
-    }
-
-    if (me.fire_state === 'firing') {
-      if (Date.now() - me.fire_last >= me.fire_speed) {
-        me.fire_state = 'fired'
-        var nade = Grenade(me.x, me.y)
-        nade.z = 0.5
-        var nade_x_minus_one_to_one = (me.own_grenade_x - 0.5) * 2
-        var nade_angle = me.angle + (nade_x_minus_one_to_one * 0.66)
-        nade.incr_x = Math.cos(nade_angle) * nade.speed
-        nade.incr_y = Math.sin(nade_angle) * nade.speed
-        nade.x += Math.cos(nade_angle) * .6
-        nade.y += Math.sin(nade_angle) * .6
-        nade.incr_x += me.incr_x
-        nade.incr_y += me.incr_y
-        nade.incr_z = me.own_grenade_y < 0.2 ? 0.2 :
-          me.own_grenade_y > 0.7 ? 0.6 : 0.4
-        nade.z = me.own_grenade_y < 0.2 ? 0.8 :
-          me.own_grenade_y > 0.7 ? 0.3 : 0.5
-        nade.incr_z *= nade.speed
-        app.map.objs.objs.push(nade)
-        window.sendShot(nade)
-      }
-    }
-
-    if (me.fire_state === 'fired') {
-      if (Date.now() - me.fire_last >= me.fire_cooldown) {
-        me.fire_state = 'idle'
-      }
-    }
-
-    if (
-      me.incr_x !== prev_incr_x || me.incr_y !== prev_incr_y ||
-      me.angle !== prev_angle
-    ) {
-      window.sendMove(me)
-    }
-  }
-
-  me.fire_grenade = function (release_start) {
-    me.fire_last = release_start
-  }
-
-  me.key_down = function(event) {
-    // sleft
-    if(event.keyCode == 37) {
-      me.sleft = true;
-    }
-    // sright
-    if(event.keyCode == 39) {
-      me.sright = true;
-    }
-    // up
-    if(event.keyCode == 38) {
-      me.up = true;
-    }
-    // down
-    if(event.keyCode == 40) {
-      me.down = true;
-    }
-  };
-
-  me.key_up = function(event) {
-    // sleft
-    if(event.keyCode == 37) {
-      me.sleft = false;
-    }
-    // sright
-    if(event.keyCode == 39) {
-      me.sright = false;
-    }
-    // up
-    if(event.keyCode == 38) {
-      me.up = false;
-    }
-    // down
-    if(event.keyCode == 40) {
-      me.down = false;
-    }
-  };
-
-  me.init();
-
-  return me;
-};
-
 var Grenade = function(x, y, isenemy) {
   var me = {
     id: 'grenade-' + ((Math.random()*1000000)|0),
@@ -684,165 +440,6 @@ var Obj = function(name, x, y, z, texture) {
   };
 
   me.update = () => null
-
-  return me;
-};
-
-var Objects = function() {
-  var me = {
-    textures : [],
-    objs : []
-  };
-
-  me.remove = function(object) {
-    var idx = me.objs.indexOf(object)
-    if (idx === -1) {
-      throw new Error('could not find object to remove')
-    }
-    delete me.objs[idx]
-    for (var i = idx + 1; i < me.objs.length; i++) me.objs[i - 1] = me.objs[i]
-    me.objs.length--
-    _sortedCacheKey = NaN
-  };
-
-  var _sortedCache = []
-  var _sortedCacheAge = 0
-  var _sortedCacheKey = -1
-  me.sorted = function(x, y) {
-    if (me.objs.length === _sortedCacheKey && _sortedCacheAge++ < 180) {
-      return _sortedCache
-    }
-    while (_sortedCache.length < me.objs.length) {
-      _sortedCache.push(Object.seal({ obj: me.objs[0], sqDist: Math.PI }));
-    }
-    if (_sortedCache.length > me.objs.length) {
-      _sortedCache.length = me.objs.length
-    }
-    for (var i = 0; i < me.objs.length; i++) {
-      _sortedCache[i].obj = me.objs[i]
-      _sortedCache[i].sqDist = Common.sqDistance(me.objs[i], x, y)
-    }
-    if (_sortedCache.length) {
-      _sortedCache.sort((a, b) => b.sqDist - a.sqDist);
-    }
-    _sortedCacheAge = 0
-    _sortedCacheKey = _sortedCache.length
-    return _sortedCache
-  };
-
-  me.get_texture = function(idx) {
-    return me.textures[idx];
-  };
-
-  var find_near_cache = []
-  me.find_near = function (x, y, sqDist) {
-    find_near_cache.length = 0
-    for (var i = 0; i < me.objs.length; i++) {
-      if (Common.sqDistance(me.objs[i], x, y) < sqDist) {
-        find_near_cache.push(me.objs[i])
-      }
-    }
-    return find_near_cache
-  }
-
-  /*
-  me.objs.push(Player(5, 1, 'isenemy'))
-
-  var tempData = {"id":0.5219182117326571,"x":5.034241173117036,"y":1.6772855328758354,"incr_x":0.01,"incr_y":0.01,"speed":2,"rotspeed":0.1,"up":false,"down":false,"right":false,"left":false}
-
-  for (var k in tempData) if (tempData.hasOwnProperty(k)) {
-    me.objs[me.objs.length - 1][k] = tempData[k]
-  }
-  */
-
-  return me;
-};
-
-var Map = function() {
-  var _ = -1
-  var w = 2  // wall
-  var O = -2  // spawn
-  var me = {
-    data : [
-      w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,
-      w,O,_,_,_,_,_,_,w,w,w,_,_,O,_,_,_,_,_,w,
-      w,_,w,w,_,w,w,_,_,w,w,_,_,_,_,_,_,w,_,w,
-      w,_,w,w,_,w,w,_,_,_,_,_,w,w,_,w,_,_,_,w,
-      w,_,_,_,_,w,w,w,w,w,w,w,w,w,_,_,_,w,_,w,
-      w,w,_,w,w,w,w,w,w,w,w,w,w,w,w,w,w,_,_,w,
-      w,_,_,_,w,w,w,_,_,_,w,w,_,_,_,_,_,w,w,w,
-      w,_,_,_,w,w,w,_,_,_,_,_,_,w,_,w,_,w,w,w,
-      w,w,_,w,w,w,w,_,_,_,w,w,_,_,_,_,_,w,w,w,
-      w,w,_,_,w,w,w,w,_,w,w,w,_,w,_,w,_,w,w,w,
-      w,w,w,_,_,_,_,_,_,w,w,w,_,_,_,_,_,w,w,w,
-      w,w,w,_,_,_,w,w,_,w,w,w,w,w,_,w,w,w,w,w,
-      w,w,w,w,_,w,w,w,_,w,w,w,w,_,_,_,O,w,w,w,
-      w,_,_,_,_,w,w,w,O,w,w,w,w,_,_,_,_,w,w,w,
-      w,_,_,w,_,_,w,w,w,w,w,w,w,_,_,_,_,w,w,w,
-      w,w,_,w,w,_,_,w,w,w,w,w,w,w,_,_,w,w,w,w,
-      w,w,_,_,_,_,_,_,w,w,w,w,w,w,w,_,w,w,w,w,
-      w,w,_,w,w,_,_,_,_,w,w,w,_,_,_,_,_,_,_,w,
-      w,w,_,w,w,w,_,_,O,w,w,w,w,_,w,w,w,_,w,w,
-      w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w,w
-    ],
-    // up to 33 x 23
-    width : 20,
-    height : 20,
-
-    textures : [],
-    bg : undefined,
-
-    objs : Objects()
-  };
-
-  me.spawn_points = []
-
-  me.init = function() {
-    me.data.forEach((code, i) => {
-      if (code === O /* spawn */) {
-        var y = Math.floor(i / me.width)
-        var x = i % me.width
-        me.spawn_points.push(Object.freeze({ x, y }))
-      }
-    })
-  };
-
-  me.texture = function(idx) {
-    return Textures.textures[idx];
-  };
-
-  me.get_texture = function(x, y) {
-    return me.texture(me.data[y*me.width + x]);
-  };
-
-  me.is_free = function(x, y) {
-    x = Math.floor(x)
-    y = Math.floor(y)
-    if(x<0 || x>=me.width || y<0 || y>=me.height) {
-      return false;
-    }
-    return me.data[y*me.width + x] < 0;
-  };
-
-  me.contains_sprite = function (x, y, n, self) {
-    n = n || 0
-    self = self || NaN
-    // temporary dumb function
-    for (var i = 0; i < me.objs.objs.length; i++) {
-      if (
-        Math.floor(me.objs.objs[i].x) === x &&
-        Math.floor(me.objs.objs[i].y) === y &&
-        me.objs.objs[i] !== self
-      ) {
-        n--;
-        if (n < 0) {
-          return me.objs.objs[i];
-        }
-      }
-    }
-  }
-
-  me.init();
 
   return me;
 };
@@ -1201,20 +798,40 @@ var Application = function(canvasID) {
       me.ctx.strokeRect(0, 0, 400, 400)
     }
     function draw_players() {
-      me.ctx.fillStyle = 'pink'
+      me.ctx.strokeStyle = 'red'
       var sprites = me.map.objs.objs;
       var xInc = (400 / me.map.width)
       var yInc = (400 / me.map.height)
       var halfXInc = xInc / 2
       var halfYInc = yInc / 2
+      me.ctx.beginPath()
       for(var i=0; i<sprites.length; i++) if (sprites[i].type === Player) {
-        var sprite_x = Common.extrapolate_x(sprites[i], dt);
-        var sprite_y = Common.extrapolate_y(sprites[i], dt);
+        me.ctx.fillStyle = 'pink'
+        var sprite_x = Common.extrapolate_x(sprites[i], dt) * xInc;
+        var sprite_y = Common.extrapolate_y(sprites[i], dt) * yInc;
+        var sprite_angle = Common.extrapolate_angle(sprites[i], dt)
         me.ctx.fillRect(
-          (sprite_x * xInc) - 10,
-          (sprite_y * yInc) - 10,
+          sprite_x - 10,
+          sprite_y - 10,
           20, 20)
+
+        if (0&&sprites[i].get_target) {
+          var [ target_x, target_y ] = sprites[i].get_target()
+          me.ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'
+          if (target_x !== undefined) {
+            me.ctx.fillRect(
+              target_x * xInc,
+              target_y * yInc,
+              xInc, yInc)
+          }
+        }
+        var dx = Math.cos(sprite_angle) * 40
+        var dy = Math.sin(sprite_angle) * 40
+
+        me.ctx.moveTo(sprite_x, sprite_y)
+        me.ctx.lineTo(sprite_x + dx, sprite_y + dy)
       }
+      me.ctx.stroke()
     }
   };
 

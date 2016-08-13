@@ -80,7 +80,10 @@
       }
     }
     if (!entity) {
-      var Klass = message.t === TYPE_GRENADE ? Grenade : Player
+      var Klass = message.t === TYPE_GRENADE ? Grenade :
+        message.t === TYPE_BOT ? Bot :
+        message.t === TYPE_PLAYER ? Player : null
+
       app.map.objs.objs.push((entity = Klass(0, 0, 'is-enemy=true')))
     }
     entity.load(message)
