@@ -1537,6 +1537,7 @@ var Application = function(canvasID) {
   }
 
 	me.init = function() {
+    Textures.init()
     me.respawn()
 	};
 
@@ -1547,13 +1548,19 @@ var Application = function(canvasID) {
 
 var app
 window.onload = function () {
-  Textures.init()
-  Tutorial.start()
-  Tutorial.onend = function ()  {
+  var development = /development/.test(location.hash)
+  if (!development) {
+    Tutorial.start()
+    Tutorial.onend = start_application
+  } else {
+    start_application()
+  }
+
+  function start_application() {
     app = Application("myCanvas");
     app.run();
 
-    if (/development/.test(location.hash)) {
+    if (development) {
       var _update = app.player.update
       app.player.update = function ()  {
         _update.apply(this, arguments)
