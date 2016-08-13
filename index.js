@@ -6,6 +6,8 @@ var http = require('http')
 var url = require('url')
 var ws = require('ws')
 
+var botRoom = require('./bot-room')
+
 var statics = ecstatic({ root: __dirname })
 var server = http.createServer((req, res) => {
   var path = url.parse(req.url).pathname
@@ -19,7 +21,7 @@ var MAX_PER_ROOM = 20
 
 function room() {
   var roomEvents = new events.EventEmitter
-  return {
+  return botRoom({
     count: 0,
     add: function addToRoom(ws) {
       this.count++
@@ -33,14 +35,26 @@ function room() {
         ws.removeListener('message', onMessage)
         roomEvents.removeListener('move', onMove)
       })
-    }
-  }
+    },
+  }, roomEvents)
 }
 
 var rooms = (function push(arr, c) {
   if (!c) { return [] }
   return arr.concat([room()]).concat(push(arr, --c))
 })([], 100)
+
+const autoBalanceAll = () => {
+  rooms.forEach(room => { room.autoBalanceBotCount() })
+}
+autoBalanceAll()
+setInterval(autoBalanceAll, 10000);
+
+setInterval(() => {
+  for (var i = 0; i < rooms.length; i++) {
+    rooms[i].updateBots(1/12)
+  }
+}, 1000 / 12)
 
 wss.on('connection', ws => {
   for (var i = 0; i < rooms.length; i++) {
@@ -51,7 +65,7 @@ wss.on('connection', ws => {
   }
 })
 
-var port = +process.env['PORT'] || 8080
+var port = +process.env['PORT'] || 3000
 server.listen(port).on('listening', function () {
   console.log('server listening on port ' + port)
 })

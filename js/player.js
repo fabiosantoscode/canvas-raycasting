@@ -4,10 +4,12 @@ if (typeof window === 'undefined') {
     textures: []
   }
   global.TYPE_PLAYER = 6
+  global.TYPE_GRENADE = 7
   global.Common = require('./common').Common
   global.TAU = Math.PI * 2
   global.HALF_TAU = Math.PI
   global.QUARTER_TAU = Math.PI / 2
+  global.Grenade = require('./grenade')
 }
 
 var Player = function(x, y, isenemy) {
@@ -124,10 +126,21 @@ var Player = function(x, y, isenemy) {
     var prev_angle = me.angle
     me.insert_controls(map, dt, up, down, sleft, sright, left, right)
 
+    me.update_fire_state(map)
+
+    if (
+      me.incr_x !== prev_incr_x || me.incr_y !== prev_incr_y ||
+      me.angle !== prev_angle
+    ) {
+      me.send_move()
+    }
+  }
+
+  me.update_fire_state = function (map) {
     if (me.fire_state === 'firing') {
       if (Date.now() - me.fire_last >= me.fire_speed) {
         me.fire_state = 'fired'
-        var nade = Grenade(me.x, me.y)
+        var nade = Grenade(me.x, me.y, me)
         nade.z = 0.5
         var nade_x_minus_one_to_one = (me.own_grenade_x - 0.5) * 2
         var nade_angle = me.angle + (nade_x_minus_one_to_one * 0.66)
@@ -142,8 +155,8 @@ var Player = function(x, y, isenemy) {
         nade.z = me.own_grenade_y < 0.2 ? 0.8 :
           me.own_grenade_y > 0.7 ? 0.3 : 0.5
         nade.incr_z *= nade.speed
-        app.map.objs.objs.push(nade)
-        sendShot(nade)
+        map.objs.objs.push(nade)
+        me.send_shot(nade)
       }
     }
 
@@ -151,13 +164,6 @@ var Player = function(x, y, isenemy) {
       if (Date.now() - me.fire_last >= me.fire_cooldown) {
         me.fire_state = 'idle'
       }
-    }
-
-    if (
-      me.incr_x !== prev_incr_x || me.incr_y !== prev_incr_y ||
-      me.angle !== prev_angle
-    ) {
-      me.send_move()
     }
   }
 
@@ -263,6 +269,13 @@ var Player = function(x, y, isenemy) {
   me.send_move = () => {
     window.sendMove()
   }
+  me.send_shot = (nade) => {
+    window.sendShot(nade)
+  }
+  me.send_damage = (ent) => {
+    window.sendDamage(ent.id)
+  }
+  me.respawn = () => null
   me.get_target = undefined;  // allow Bot() to add this function
 
   me.init();
