@@ -1,3 +1,4 @@
+PATH := ./node_modules/.bin:$(PATH)
 
 watch:
 	nodemon --ignore phonegap
