@@ -1,136 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-	<title>WIMBLEDEATH</title>
-	<style type="text/css">
-        * {
-            -webkit-tap-highlight-color: rgba(0,0,0,0); /* make transparent link selection, adjust last value opacity 0 to 1.0 */
-        }
-        body, html { margin: 0; padding: 0; }
-		body {
-            -webkit-touch-callout: none;                /* prevent callout to copy image, etc when tap to hold */
-            -webkit-text-size-adjust: none;             /* prevent webkit from resizing text to fit */
-            -webkit-user-select: none;                  /* prevent copy paste, to allow, change 'none' to 'text' */
-			background-color: #000;
-			color: #fff;
-			text-align: center;
-			font-family: 'MedievalSharp';
-            overflow: hidden;
-		}
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>WIMBLEDEATH</title>
+<style type="text/css">
+* {
+  -webkit-tap-highlight-color: rgba(0,0,0,0); /* make transparent link selection, adjust last value opacity 0 to 1.0 */
+}
+body, html { margin: 0; padding: 0; }
+body {
+  -webkit-touch-callout: none;        /* prevent callout to copy image, etc when tap to hold */
+  -webkit-text-size-adjust: none;       /* prevent webkit from resizing text to fit */
+  -webkit-user-select: none;          /* prevent copy paste, to allow, change 'none' to 'text' */
+  background-color: #000;
+  color: #fff;
+  text-align: center;
+  font-family: 'MedievalSharp';
+  overflow: hidden;
+}
 
-        #myCanvas {
-            display: block;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-        }
+#myCanvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+}
 
 
-        @media screen and (min-aspect-ratio: 10 / 6) {
-            #myCanvas {
-                height: 100vh;
-                width: 166.66vh;
-                margin: 0 auto;
-            }
-        }
-        @media screen and (max-aspect-ratio: 10 / 6) {
-            #myCanvas {
-                width: 100%;
-                height: 60vw;
-            }
-        }
+@media screen and (min-aspect-ratio: 10 / 6) {
+  #myCanvas {
+    height: 100vh;
+    width: 166.66vh;
+    margin: 0 auto;
+  }
+}
+@media screen and (max-aspect-ratio: 10 / 6) {
+  #myCanvas {
+    width: 100%;
+    height: 60vw;
+  }
+}
 
-        @media screen and (orientation: landscape) {
-        }
+@media screen and (orientation: landscape) {
+}
 
-		a {
-			text-decoration: none;
-			color: yellow;
-		}
+a {
+  text-decoration: none;
+  color: yellow;
+}
 
-        .tutorial-mode #fixedContainer {
-            display: none;
-        }
-        #fixedContainer {
-            top: 0;
-            left: 0;
-            position: fixed !important;
-            z-index: 1;
-        }
-        #fixedContainer > * {
-            margin: 1em;
-            padding: 1em;
-            color: white;
-            background: rgba(0,0,0,0.5);
-        }
+.tutorial-mode #fixedContainer {
+  display: none;
+}
+#fixedContainer {
+  top: 0;
+  left: 0;
+  position: fixed !important;
+  z-index: 1;
+}
+#fixedContainer > * {
+  margin: 1em;
+  padding: 1em;
+  color: white;
+  background: rgba(0,0,0,0.5);
+}
 
-        .tutorial-image {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            max-width: 60%;
-            margin: 0 auto;
-            box-sizing: border-box;
-            -webkit-box-sizing: border-box;
-        }
-        @media screen and (min-aspect-ratio: 10 / 6) {
-            .tutorial-image {
-                margin: unset;
-                max-width: unset;
-                padding: 7vmin;
-                height: 100vh;
-                width: 166.66vh;
-                left: calc((100vw - 166.66vh) / 2);
-            }
-        }
-        @media screen and (max-aspect-ratio: 10 / 6) {
-            .tutorial-image {
-                margin: unset;
-                max-width: unset;
-                padding: 7vmin;
-                width: 100%;
-                height: 60vw;
-                top: calc((100vh - 60vw) / 2);
-            }
-        }
-	</style>
-    <!--CORDOVA_SCRIPTS-->
-	</head>
-	<body>
-		<canvas id="myCanvas"></canvas>
-        <div id="fixedContainer">
-            <a href="#" id="fullScreen">fullscreen</a>
-            <a href="#" id="options">options</a>
-        </div>
-        <script type="text/javascript" src="js/virtualjoystick.js"></script>
-        <script type="text/javascript" src="js/use-joystick.js"></script>
-        <script type="text/javascript" src="js/settings.js"></script>
-        <script type="text/javascript" src="js/websocket.js"></script>
-        <script type="text/javascript" src="js/app.js"></script>
-        <script>
-          document.getElementById('fullScreen').addEventListener('click', function() {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
-              (
-                document.body.mozRequestFullScreen ||
-                document.body.webkitRequestFullscreen ||
-                document.body.requestFullscreen
-              ).call(document.body)
-            }
-          })
-          function onFullscreenChange() {
-            if ('screen' in window) {
-              var lockOrientation = screen.lockOrientation || screen.webkitLockOrientation || screen.mozLockOrientation || screen.msLockOrientation
-              if (lockOrientation)
-                lockOrientation.call(screen, 'landscape-primary')
-            }
-          }
-          document.addEventListener('fullscreenchange', onFullscreenChange)
-          document.addEventListener('mozfullscreenchange', onFullscreenChange)
-          document.addEventListener('webkitfullscreenchange', onFullscreenChange)
-          onFullscreenChange()
-        </script>
-	</body>
+.tutorial-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 60%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+}
+@media screen and (min-aspect-ratio: 10 / 6) {
+  .tutorial-image {
+    margin: unset;
+    max-width: unset;
+    padding: 7vmin;
+    height: 100vh;
+    width: 166.66vh;
+    left: calc((100vw - 166.66vh) / 2);
+  }
+}
+@media screen and (max-aspect-ratio: 10 / 6) {
+  .tutorial-image {
+    margin: unset;
+    max-width: unset;
+    padding: 7vmin;
+    width: 100%;
+    height: 60vw;
+    top: calc((100vh - 60vw) / 2);
+  }
+}
+</style>
+<!--CORDOVA_SCRIPTS-->
+</head>
+<body>
+<canvas id="myCanvas"></canvas>
+<div id="fixedContainer">
+  <a href="#" id="fullScreen">fullscreen</a>
+  <a href="#" id="options">options</a>
+</div>
+<script type="text/javascript" src="js/virtualjoystick.js"></script>
+<script type="text/javascript" src="js/use-joystick.js"></script>
+<script type="text/javascript" src="js/settings.js"></script>
+<script type="text/javascript" src="js/websocket.js"></script>
+<script type="text/javascript" src="js/app.js"></script>
+<script>
+  document.getElementById('fullScreen').addEventListener('click', function() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+      (
+        document.body.mozRequestFullScreen ||
+        document.body.webkitRequestFullscreen ||
+        document.body.requestFullscreen
+      ).call(document.body)
+    }
+  })
+  function onFullscreenChange() {
+    if ('screen' in window) {
+      var lockOrientation = screen.lockOrientation || screen.webkitLockOrientation || screen.mozLockOrientation || screen.msLockOrientation
+      if (lockOrientation)
+        lockOrientation.call(screen, 'landscape-primary')
+    }
+  }
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener('mozfullscreenchange', onFullscreenChange)
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+  onFullscreenChange()
+</script>
+</body>
 </html>
 
