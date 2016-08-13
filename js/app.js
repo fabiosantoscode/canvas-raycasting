@@ -8,7 +8,6 @@ var TYPE_BOT = 8
 var TAU = Math.PI * 2
 var HALF_TAU = Math.PI
 var QUARTER_TAU = Math.PI / 2
-const round2 = n => Math.round(n * 100) / 100
 
 // from https://github.com/kayellpeee/hsl_rgb_converter/blob/master/converter.js
 var hslToRgb = function(hue, saturation, lightness){
@@ -347,11 +346,11 @@ var Grenade = function(x, y, isenemy) {
   me.save = function (data) {
     _saved.t = TYPE_GRENADE
     _saved.id = me.id
-    _saved.x = round2(me.x)
-    _saved.y = round2(me.y)
-    _saved.z = round2(me.z)
-    _saved.incr_x = round2(me.incr_x)
-    _saved.incr_y = round2(me.incr_y)
+    _saved.x = Common.round2(me.x)
+    _saved.y = Common.round2(me.y)
+    _saved.z = Common.round2(me.z)
+    _saved.incr_x = Common.round2(me.incr_x)
+    _saved.incr_y = Common.round2(me.incr_y)
     return JSON.stringify(_saved)
   }
 
@@ -407,28 +406,6 @@ var Explosion = function (x, y, z) {
 
   return me
 }
-
-var Common = function () {
-  var me = {}
-  me.extrapolate_x = (me, dt) => me.x + (me.incr_x * dt)
-  me.extrapolate_y = (me, dt) => me.y + (me.incr_y * dt)
-  me.extrapolate_z = (me, dt) => me.z + (me.incr_z * dt)
-  me.extrapolate_angle = (me, dt) => me.angle + (me.incr_angle * dt)
-  me.extrapolate_dx = (me, dt, angle = Common.extrapolate_angle(me, dt)) => Math.cos(angle)
-  me.extrapolate_dy = (me, dt, angle = Common.extrapolate_angle(me, dt)) => Math.sin(angle)
-  me.extrapolate_cx = (me, dt, angle = Common.extrapolate_angle(me, dt)) => -Math.sin(angle) * 0.66
-  me.extrapolate_cy = (me, dt, angle = Common.extrapolate_angle(me, dt)) => Math.cos(angle) * 0.66
-  me.sqDistance = function(me, x, y) {
-    return Math.pow(x-me.x, 2) + Math.pow(y-me.y, 2);
-  };
-  me.cubeDistance = function(me, x, y, z) {
-    return Math.pow(x-me.x, 2) + Math.pow(y-me.y, 2) + Math.pow(z-me.z, 2);
-  };
-  me.collidingWith = (me, _with) => Common.sqDistance(me, _with.x, _with.y) < me.sqRadius + _with.sqRadius
-  me.collidingWith3d = (me, _with) => Common.cubeDistance(me, _with.x, _with.y, _with.z) < me.cubeRadius + _with.cubeRadius
-  Object.seal(me)
-  return me
-}();
 
 var Obj = function(name, x, y, z, texture) {
   var me = {
@@ -751,88 +728,87 @@ var Application = function(canvasID) {
     }
   };
 
-  me.draw_top_down = function (dt) {
-    me.ctx.fillStyle = 'black'
-    me.ctx.fillRect(0, 0, 400, 400)
-    draw_cells()
-    draw_grid_lines()
-    draw_players()
-    function draw_cells() {
-      var xInc = 400 / me.map.width
-      var yInc = 400 / me.map.height
-      for (var x = 0; x < me.map.width; x++) {
-        for (var y = 0; y < me.map.height; y++) {
-          var tex = me.map.get_texture(x, y)
-          if (tex) me.ctx.drawImage(
-            tex,
-            0, 0,
-            tex.width / 10, tex.height / 10,
-            x * xInc, y * yInc,
+  var topDownBg
+  function draw_top_down_cells() {
+    var xInc = 400 / me.map.width
+    var yInc = 400 / me.map.height
+    for (var x = 0; x < me.map.width; x++) {
+      for (var y = 0; y < me.map.height; y++) {
+        var tex = me.map.get_texture(x, y)
+        if (tex) topDownBg.drawImage(
+          tex,
+          0, 0,
+          tex.width / 10, tex.height / 10,
+          x * xInc, y * yInc,
+          xInc, yInc)
+      }
+    }
+  }
+  function draw_top_down_grid_lines() {
+    topDownBg.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+    topDownBg.strokeWidth = 4
+    topDownBg.beginPath();
+    topDownBg.moveTo(0, 0);
+    topDownBg.lineTo(0, 400);
+    for (var y = 0; y < 400; y += (400 / me.map.width)|0) {
+      topDownBg.moveTo(0, y);
+      topDownBg.lineTo(400, y);
+    }
+    for (var x = 0; x < 400; x += (400 / me.map.height)|0) {
+      topDownBg.moveTo(x, 0);
+      topDownBg.lineTo(x, 400);
+    }
+    topDownBg.stroke()
+    topDownBg.strokeRect(0, 0, 400, 400)
+  }
+  function draw_top_down_players(dt) {
+    me.ctx.strokeStyle = 'red'
+    var sprites = me.map.objs.objs;
+    var xInc = (400 / me.map.width)
+    var yInc = (400 / me.map.height)
+    var halfXInc = xInc / 2
+    var halfYInc = yInc / 2
+    me.ctx.beginPath()
+    for(var i=0; i<sprites.length; i++) if (sprites[i].type === Player) {
+      me.ctx.fillStyle = 'pink'
+      var sprite_x = Common.extrapolate_x(sprites[i], dt) * xInc;
+      var sprite_y = Common.extrapolate_y(sprites[i], dt) * yInc;
+      var sprite_angle = Common.extrapolate_angle(sprites[i], dt)
+      me.ctx.fillRect(
+        sprite_x - 10,
+        sprite_y - 10,
+        20, 20)
+
+      if (0&&sprites[i].get_target) {
+        var [ target_x, target_y ] = sprites[i].get_target()
+        me.ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'
+        if (target_x !== undefined) {
+          me.ctx.fillRect(
+            target_x * xInc,
+            target_y * yInc,
             xInc, yInc)
         }
       }
-    }
-    function draw_grid_lines() {
-      me.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-      me.ctx.strokeWidth = 4
-      me.ctx.beginPath();
-      me.ctx.moveTo(0, 0);
-      me.ctx.lineTo(0, 400);
-      for (var y = 0; y < 400; y += (400 / me.map.width)|0) {
-        me.ctx.moveTo(0, y);
-        me.ctx.lineTo(400, y);
-        me.ctx.moveTo(0, y + 1);
-        me.ctx.lineTo(400, y + 1);
-        me.ctx.moveTo(0, y - 1);
-        me.ctx.lineTo(400, y - 1);
-      }
-      for (var x = 0; x < 400; x += (400 / me.map.height)|0) {
-        me.ctx.moveTo(x, 0);
-        me.ctx.lineTo(x, 400);
-        me.ctx.moveTo(x + 1, 0);
-        me.ctx.lineTo(x + 1, 400);
-        me.ctx.moveTo(x - 1, 0);
-        me.ctx.lineTo(x - 1, 400);
-      }
-      me.ctx.stroke()
-      me.ctx.strokeRect(0, 0, 400, 400)
-    }
-    function draw_players() {
-      me.ctx.strokeStyle = 'red'
-      var sprites = me.map.objs.objs;
-      var xInc = (400 / me.map.width)
-      var yInc = (400 / me.map.height)
-      var halfXInc = xInc / 2
-      var halfYInc = yInc / 2
-      me.ctx.beginPath()
-      for(var i=0; i<sprites.length; i++) if (sprites[i].type === Player) {
-        me.ctx.fillStyle = 'pink'
-        var sprite_x = Common.extrapolate_x(sprites[i], dt) * xInc;
-        var sprite_y = Common.extrapolate_y(sprites[i], dt) * yInc;
-        var sprite_angle = Common.extrapolate_angle(sprites[i], dt)
-        me.ctx.fillRect(
-          sprite_x - 10,
-          sprite_y - 10,
-          20, 20)
+      var dx = Math.cos(sprite_angle) * 40
+      var dy = Math.sin(sprite_angle) * 40
 
-        if (0&&sprites[i].get_target) {
-          var [ target_x, target_y ] = sprites[i].get_target()
-          me.ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'
-          if (target_x !== undefined) {
-            me.ctx.fillRect(
-              target_x * xInc,
-              target_y * yInc,
-              xInc, yInc)
-          }
-        }
-        var dx = Math.cos(sprite_angle) * 40
-        var dy = Math.sin(sprite_angle) * 40
-
-        me.ctx.moveTo(sprite_x, sprite_y)
-        me.ctx.lineTo(sprite_x + dx, sprite_y + dy)
-      }
-      me.ctx.stroke()
+      me.ctx.moveTo(sprite_x, sprite_y)
+      me.ctx.lineTo(sprite_x + dx, sprite_y + dy)
     }
+    me.ctx.stroke()
+  }
+  me.draw_top_down = function (dt) {
+    me.ctx.fillStyle = 'black'
+    if (!topDownBg) {
+      topDownBg = document.createElement('canvas').getContext('2d')
+      topDownBg.canvas.height = topDownBg.canvas.width = 400
+      topDownBg.fillStyle = 'black'
+      topDownBg.fillRect(0, 0, 400, 400)
+      draw_top_down_cells()
+      draw_top_down_grid_lines()
+    }
+    me.ctx.drawImage(topDownBg.canvas, 0, 0)
+    draw_top_down_players(dt)
   };
 
   me.populate_buffers = function (player_x, player_y, player_dx, player_dy, player_cx, player_cy) {
@@ -1207,23 +1183,7 @@ var Application = function(canvasID) {
   }
 
   me.respawn = function() {
-    var point = me.map.spawn_points[Math.floor(Math.random() * me.map.spawn_points.length)]
-    if (me.map.is_free(point.x, point.y - 1)) {
-      player.angle = -QUARTER_TAU
-    }
-    if (me.map.is_free(point.x, point.y + 1)) {
-      player.angle = QUARTER_TAU
-    }
-    if (me.map.is_free(point.x - 1, point.y)) {
-      player.angle = HALF_TAU
-    }
-    if (me.map.is_free(point.x + 1, point.y)) {
-      player.angle = 0
-    }
-    player.angle += QUARTER_TAU / 4
-    player.angle -= (QUARTER_TAU / 2) * Math.random()
-    player.x = point.x + .5
-    player.y = point.y + .5
+    Common.random_spawn(player, me.map)
     window.sendMove(player)
   }
 

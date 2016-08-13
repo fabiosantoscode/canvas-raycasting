@@ -1,6 +1,18 @@
 
+if (typeof window === 'undefined') {
+  global.Textures = {
+    textures: []
+  }
+  global.TYPE_PLAYER = 6
+  global.Common = require('./common').Common
+  global.TAU = Math.PI * 2
+  global.HALF_TAU = Math.PI
+  global.QUARTER_TAU = Math.PI / 2
+}
+
 var Player = function(x, y, isenemy) {
   var me = {
+    t: TYPE_PLAYER,
     type: Player,
     id: (Math.random() * 1000000)|0,
     // position
@@ -14,7 +26,7 @@ var Player = function(x, y, isenemy) {
     incr_z: 0,
     incr_angle: 0,
 
-    speed: 2,
+    speed: 1.5,
     rotspeed: 2,
 
     up : false,
@@ -45,14 +57,8 @@ var Player = function(x, y, isenemy) {
     Object.seal(me)
   };
 
-  me.load = function (data) {
-    for (var key in data) if (key !== 'sprite' && key !== 't') {
-      me[key] = data[key]
-    }
-  }
-
   var _saved = Object.seal({
-    t: TYPE_PLAYER,
+    t: 0,
     id: 0,
     x: 0,
     y: 0,
@@ -63,13 +69,25 @@ var Player = function(x, y, isenemy) {
   })
   me.save = function (data) {
     _saved.id = me.id
-    _saved.x = round2(me.x)
-    _saved.y = round2(me.y)
-    _saved.angle = round2(me.angle)
-    _saved.incr_x = round2(me.incr_x)
-    _saved.incr_y = round2(me.incr_y)
-    _saved.incr_angle = round2(me.incr_angle)
+    _saved.t = me.t
+    _saved.x = Common.round2(me.x)
+    _saved.y = Common.round2(me.y)
+    _saved.angle = Common.round2(me.angle)
+    _saved.incr_x = Common.round2(me.incr_x)
+    _saved.incr_y = Common.round2(me.incr_y)
+    _saved.incr_angle = Common.round2(me.incr_angle)
     return JSON.stringify(_saved)
+  }
+
+  me.load = function (data) {
+    me.id = data.id
+    me.t = data.t
+    me.x = data.x
+    me.y = data.y
+    me.angle = data.angle
+    me.incr_x = data.incr_x
+    me.incr_y = data.incr_y
+    me.incr_angle = data.incr_angle
   }
 
   me.update = function(map, dt) {
@@ -125,7 +143,7 @@ var Player = function(x, y, isenemy) {
           me.own_grenade_y > 0.7 ? 0.3 : 0.5
         nade.incr_z *= nade.speed
         app.map.objs.objs.push(nade)
-        window.sendShot(nade)
+        sendShot(nade)
       }
     }
 
@@ -139,7 +157,7 @@ var Player = function(x, y, isenemy) {
       me.incr_x !== prev_incr_x || me.incr_y !== prev_incr_y ||
       me.angle !== prev_angle
     ) {
-      window.sendMove(me)
+      me.send_move()
     }
   }
 
@@ -242,6 +260,9 @@ var Player = function(x, y, isenemy) {
     }
   };
 
+  me.send_move = () => {
+    window.sendMove()
+  }
   me.get_target = undefined;  // allow Bot() to add this function
 
   me.init();
