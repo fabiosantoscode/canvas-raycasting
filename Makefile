@@ -26,6 +26,7 @@ android-watch:
 		--exec 'make android'
 
 apk: build-android
+	rm -f android.apk
 	cd phonegap && \
 		phonegap build android --release
 	jarsigner -verbose \
