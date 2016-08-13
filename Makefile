@@ -11,10 +11,12 @@ bootstrap:
 	npm install
 	cd phonegap && phonegap install android
 
-android:
+build-android:
 	cp -r img phonegap/www
 	sed -e '/<\!--CORDOVA_SCRIPTS-->/ r cordova-scripts.html' < index.html > phonegap/www/index.html
 	./node_modules/.bin/babel --presets=es2015 --out-dir phonegap/www/js js
+
+android: build-android
 	cd phonegap && phonegap run android
 
 android-watch:
@@ -23,7 +25,7 @@ android-watch:
 		--ext js,html \
 		--exec 'make android'
 
-apk:
+apk: build-android
 	cd phonegap && \
 		phonegap build android --release
 	jarsigner -verbose \
