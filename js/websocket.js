@@ -103,6 +103,6 @@
     send(_grenade.save())
   }
   window.sendDamage = function(id) {
-    send({ id: id, msgType: 'damage' })
+    send(JSON.stringify({ id: id, msgType: 'damage' }))
   }
 }())
