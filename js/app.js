@@ -246,6 +246,7 @@ var Textures = (function() {
 
 var Player = function(x, y, isenemy) {
   var me = {
+    type: Player,
     id: (Math.random() * 1000000)|0,
     // position
     x : x+0.5,
@@ -1070,13 +1071,20 @@ var Application = function(canvasID) {
     latest_animation_timestamp: 0,  // Because the time an explosion starts is not Date.now(), it's the RAF thing
   };
 
-  me.setup = function({ resolution } = {}) {
+  me.setup = function({ resolution, top_down } = {}) {
     if (resolution === undefined) resolution = me.resolution
 
-    me.width = defaultWidth * resolution
-    me.height = defaultHeight * resolution
-    me._width = defaultWidth * resolution
-    me._height = defaultHeight * resolution
+    if (!top_down) {
+      me.width = defaultWidth * resolution
+      me.height = defaultHeight * resolution
+      me._width = defaultWidth * resolution
+      me._height = defaultHeight * resolution
+      me.canvas.className = ''
+    } else {
+      me.width = me._width = 400
+      me.height = me._height = 400
+      me.canvas.className = 'topDown'
+    }
 
     me.canvas.width = me._width;
     me.canvas.height = me._height;
@@ -1143,6 +1151,70 @@ var Application = function(canvasID) {
     if(time > me._time + me.fps*1000) {
       me._time = time;
       me._frames = 0;
+    }
+  };
+
+  me.draw_top_down = function (dt) {
+    me.ctx.fillStyle = 'black'
+    me.ctx.fillRect(0, 0, 400, 400)
+    draw_cells()
+    draw_grid_lines()
+    draw_players()
+    function draw_cells() {
+      var xInc = 400 / me.map.width
+      var yInc = 400 / me.map.height
+      for (var x = 0; x < me.map.width; x++) {
+        for (var y = 0; y < me.map.height; y++) {
+          var tex = me.map.get_texture(x, y)
+          if (tex) me.ctx.drawImage(
+            tex,
+            0, 0,
+            tex.width / 10, tex.height / 10,
+            x * xInc, y * yInc,
+            xInc, yInc)
+        }
+      }
+    }
+    function draw_grid_lines() {
+      me.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+      me.ctx.strokeWidth = 4
+      me.ctx.beginPath();
+      me.ctx.moveTo(0, 0);
+      me.ctx.lineTo(0, 400);
+      for (var y = 0; y < 400; y += (400 / me.map.width)|0) {
+        me.ctx.moveTo(0, y);
+        me.ctx.lineTo(400, y);
+        me.ctx.moveTo(0, y + 1);
+        me.ctx.lineTo(400, y + 1);
+        me.ctx.moveTo(0, y - 1);
+        me.ctx.lineTo(400, y - 1);
+      }
+      for (var x = 0; x < 400; x += (400 / me.map.height)|0) {
+        me.ctx.moveTo(x, 0);
+        me.ctx.lineTo(x, 400);
+        me.ctx.moveTo(x + 1, 0);
+        me.ctx.lineTo(x + 1, 400);
+        me.ctx.moveTo(x - 1, 0);
+        me.ctx.lineTo(x - 1, 400);
+      }
+      me.ctx.stroke()
+      me.ctx.strokeRect(0, 0, 400, 400)
+    }
+    function draw_players() {
+      me.ctx.fillStyle = 'pink'
+      var sprites = me.map.objs.objs;
+      var xInc = (400 / me.map.width)
+      var yInc = (400 / me.map.height)
+      var halfXInc = xInc / 2
+      var halfYInc = yInc / 2
+      for(var i=0; i<sprites.length; i++) if (sprites[i].type === Player) {
+        var sprite_x = Common.extrapolate_x(sprites[i], dt);
+        var sprite_y = Common.extrapolate_y(sprites[i], dt);
+        me.ctx.fillRect(
+          (sprite_x * xInc) - 10,
+          (sprite_y * yInc) - 10,
+          20, 20)
+      }
     }
   };
 
@@ -1489,7 +1561,9 @@ var Application = function(canvasID) {
       lastUpdate = timeStamp
     }
 
-    if ((timeStamp - me.latest_animation_timestamp) > FPSthInMilliseconds*.5) {
+    if (Settings.top_down) {
+      me.draw_top_down(toGo, timeStamp);
+    } else if ((timeStamp - me.latest_animation_timestamp) > FPSthInMilliseconds*.5) {
       // This means that we're letting it refresh at 25 or 30, whatever floats its boat
       me.latest_animation_timestamp = timeStamp
       me.draw(toGo, timeStamp);
@@ -1548,7 +1622,8 @@ var Application = function(canvasID) {
 
 var app
 window.onload = function () {
-  var development = /development/.test(location.hash)
+  Settings.top_down = /topdown/.test(location.hash)
+  var development = /development/.test(location.hash) || Settings.top_down
   if (!development) {
     Tutorial.start()
     Tutorial.onend = start_application

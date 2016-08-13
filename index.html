@@ -40,7 +40,20 @@ body {
   }
 }
 
-@media screen and (orientation: landscape) {
+@media screen and (max-aspect-ratio: 1/1) {
+  #myCanvas.topDown {
+    width: 100vw;
+    height: 100vw;
+    margin: calc(50vh - 50vw) auto;
+  }
+}
+
+@media screen and (min-aspect-ratio: 1/1) {
+  #myCanvas.topDown {
+    width: 100vh;
+    height: 100vh;
+    margin: 0 auto;
+  }
 }
 
 a {
@@ -99,7 +112,7 @@ a {
 <!--CORDOVA_SCRIPTS-->
 </head>
 <body>
-<canvas id="myCanvas"></canvas>
+<canvas id="myCanvas" moz-opaque></canvas>
 <div id="fixedContainer">
   <a href="#" id="fullScreen">fullscreen</a>
   <a href="#" id="options">options</a>
