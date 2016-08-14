@@ -1,0 +1,31 @@
+{
+  "name": "js-pathfind",
+  "version": "0.1.0",
+  "description": "Javascript A* implementation",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "gulp test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zoby/pathfind.git"
+  },
+  "author": "Edward Smyth",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zoby/pathfind/issues"
+  },
+  "homepage": "https://github.com/zoby/pathfind",
+  "devDependencies": {
+    "gulp": "^3.8.11",
+    "gulp-istanbul": "^0.6.0",
+    "gulp-mocha": "^2.0.0",
+    "gulp-rename": "^1.2.0",
+    "gulp-uglify": "^1.1.0",
+    "mocha": "^2.2.1",
+    "should": "^5.2.0"
+  }
+}
