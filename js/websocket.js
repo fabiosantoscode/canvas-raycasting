@@ -51,7 +51,8 @@
 
   function reconnect() {
     sock_instance = null
-    setTimeout(() => { connect() }, 1000)
+    app.map.objs.objs.length = 0
+    setTimeout(() => { connect() }, 1200)
   }
 
   function process_damage(message) {

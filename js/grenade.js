@@ -4,6 +4,7 @@ var Explosion = function (x, y, z) {
     x: x,
     y: y,
     z: z,
+    type: Explosion,
     incr_x: 0,
     incr_y: 0,
     incr_z: 0,
@@ -36,6 +37,7 @@ var Explosion = function (x, y, z) {
 }
 
 var Grenade = function(x, y, owner) {
+  if (!(owner && owner.x)) { owner = undefined }
   var me = {
     id: 'grenade-' + ((Math.random()*1000000)|0),
     type: Grenade,

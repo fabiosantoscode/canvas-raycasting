@@ -47,7 +47,6 @@ var rooms = (function push(arr, c) {
 const autoBalanceAll = () => {
   rooms.forEach(room => { room.autoBalanceBotCount() })
 }
-autoBalanceAll()
 setInterval(autoBalanceAll, 10000);
 
 setInterval(() => {

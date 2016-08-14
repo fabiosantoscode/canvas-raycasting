@@ -1,3 +1,5 @@
+'use strict'
+
 var Pathfind = require('./pathfind')
 var Player = require('./js/player').Player
 
@@ -55,7 +57,6 @@ var Bot = module.exports = function (map, roomEvents) {
   var think_id = 0
   var last_enemy_x = -1
   var last_enemy_y = -1
-  var follow_start = 0
   var enemy_distance = 0
   var think = function (map) {
     if (Math.random() < 0.1) { unstuck() }
@@ -63,24 +64,22 @@ var Bot = module.exports = function (map, roomEvents) {
       if (Math.random() < 0.1) {
         look(map)
         if (enemy) {
-          state = 'follow'
-          follow_start = Date.now()
+          state = 'kill'
           return think(map)
         }
       }
       if (!path.length) { new_path() }
-    } else if (state === 'follow') {
-      if (Math.random() < 0.2) {
-        enemy_distance = Common.sqDistance(enemy, me.x, me.y)
-        if (enemy_distance > 4 || Date.now() - follow_start > 5000) {
-          enemy = null
-          state = 'wander'
-          return think(map)
-        }
-        if (enemy_distance < 2 && Math.random() > 0.5) {
-          // run away
-          new_path()
-        }
+    } else if (state === 'kill') {
+      enemy_distance = Common.sqDistance(enemy, me.x, me.y)
+      if (enemy_distance > 4) {
+        enemy = null
+        state = 'wander'
+        new_path()
+        return think(map)
+      }
+      if (enemy_distance < 2) {
+        // run away
+        new_path()
       }
     }
   }
@@ -124,7 +123,7 @@ var Bot = module.exports = function (map, roomEvents) {
     var x = i % map.width
     var y = Math.floor(i / map.width)
 
-    if (spot === -1 && all[i+1] === -1 && all[i+map.width] === -1 && all[i+map.width+1] === -1) {
+    if (spot === -1 && all[i+1] === -1 && all[i+map.width] === -1) {
       // 4*4 spot
       return [ x, y ]
     }
@@ -163,29 +162,8 @@ var Bot = module.exports = function (map, roomEvents) {
       target_y+=0.5
     }
 
-    if (state === 'follow') {
-      target_x = enemy.x | 0
-      target_y = enemy.y | 0
-    }
-
     if (target_y !== undefined && target_x !== undefined) {
-      var target_dx = target_x - me.x
-      var target_dy = target_y - me.y
-
-      var len = Math.sqrt(
-        (target_dx * target_dx) +
-        (target_dy * target_dy)
-      )
-
-      //target_dx /= len
-      //target_dy /= len
-
-      var dot_product = dot(
-        target_dx,
-        target_dy,
-        Common.extrapolate_dx(me, 0),
-        Common.extrapolate_dy(me, 0)
-      )
+      var dot_product = facing(target_x, target_y)
 
       if (dot_product > 0.4) {
         up = dot_product
@@ -193,41 +171,61 @@ var Bot = module.exports = function (map, roomEvents) {
       if (dot_product < -0.5) {
         down = -dot_product
       }
-      if (state === 'follow') {
+
+      if (state === 'kill') {
         if (dot_product > 0.4) {
           me.own_grenade_y = Math.random()
           me.own_grenade_x = Math.random()
           me.fire_state = 'firing'
           me.fire_grenade(Date.now())
         }
-      }
 
-      var do_turn_right = dot(
-        target_dx, target_dy,
-        Math.cos(me.angle + 0.1), Math.sin(me.angle + 0.1)
-      ) - dot(
-        target_dx, target_dy,
-        Math.cos(me.angle - 0.1), Math.sin(me.angle - 0.1)
-      )
-
-      /*
-      if (state === 'follow') {
-        do_turn_right = -do_turn_right
-      }
-      */
-
-      if (len > 0.1) {
-        if (do_turn_right > 0) {
-          right = Math.min(1, do_turn_right * 10)
-        } else {
-          left = Math.min(1, -do_turn_right * 10)
+        if (enemy_distance < 2) {
+          var facing_enemy = facing(enemy.x, enemy.y)
+          if (facing_enemy > 0.2) {
+            down = facing_enemy
+            up = 0
+          } else if (facing_enemy < -0.2) {
+            down = 0
+            up = -facing_enemy
+          }
         }
+      }
+
+      var do_turn_right =
+        facing(target_x, target_y, me.angle + 0.1) -
+        facing(target_x, target_y, me.angle - 0.1)
+
+      if (do_turn_right > 0) {
+        right = Math.min(1, do_turn_right * 10) || 0
+      } else {
+        left = Math.min(1, -do_turn_right * 10) || 0
       }
     }
 
     me.insert_controls(map, dt, up, down, sleft, sright, left, right)
 
     talk()
+  }
+
+  function facing(x, y, angle = me.angle) {
+    var dx = x - me.x
+    var dy = y - me.y
+
+    var len = Math.sqrt(
+      (dx * dx) +
+      (dy * dy)
+    )
+
+    dx /= len
+    dy /= len
+
+    return dot(
+      dx,
+      dy,
+      Math.cos(angle),
+      Math.sin(angle)
+    )
   }
 
   var last_sent = -1
@@ -243,7 +241,7 @@ var Bot = module.exports = function (map, roomEvents) {
         Math.abs(last_incr_y - me.incr_y) > 0.1 ||
         last_block_x != me.x|0 ||
         last_block_y != me.y|0 ||
-        Math.abs(last_incr_angle - me.incr_angle) > 0.1
+        Math.abs(last_incr_angle - me.incr_angle) > 0.3
       )
     ) {
       last_incr_x = me.incr_x

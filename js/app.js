@@ -609,12 +609,13 @@ var Application = function(canvasID) {
     for(var i=0; i<sprites.length; i++) {
       var isNade = sprites[i].type === Grenade
       var isPlayer = sprites[i].type === Player
-      if (!(isNade || isPlayer)) { continue; }
-      me.ctx.fillStyle = isPlayer ? 'pink' : isNade ? 'red' : 'white'
+      var isExplosion = sprites[i].type === Explosion
+      if (!(isNade || isPlayer || isExplosion)) { continue; }
+      me.ctx.fillStyle = isPlayer ? 'pink' : isNade ? 'red' : 'rgba(230, 100, 0, 0.4)'
       var sprite_x = Common.extrapolate_x(sprites[i], dt) * xInc;
       var sprite_y = Common.extrapolate_y(sprites[i], dt) * yInc;
       var sprite_angle = Common.extrapolate_angle(sprites[i], dt)
-      var radius = isPlayer ? 10 : 5
+      var radius = isNade ? 5 : isPlayer ? 10 : 40
       me.ctx.fillRect(
         sprite_x - radius,
         sprite_y - radius,
