@@ -90,11 +90,20 @@ var Grenade = function(x, y, owner) {
         return me.explode(map)
       }
     }
+    if (typeof window !== 'undefined') {
+      if (me.should_explode_on(app.player) && Common.collidingWith3d(me, app.player)) {
+        if (owner) {
+          owner.send_damage(app.player)
+        }
+        app.respawn()
+        return me.explode(map)
+      }
+    }
   }
 
   me.set_app = (_app) => { app = _app }
 
-  me.should_explode_on = () => true
+  me.should_explode_on = (ent) => ent !== owner
 
   me.collide = function (map) {
     if (me.z <= 0) {
