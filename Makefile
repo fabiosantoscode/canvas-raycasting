@@ -27,6 +27,12 @@ android-watch:
 
 apk: build-android
 	rm -f android.apk
+	rm -rf phonegap/platforms/android/assets/www/res/icon
+	rm -rf phonegap/platforms/android/res/drawable-*
+	rm -rf phonegap/www/splash.png
+	rm -rf phonegap/www/appstore.png
+	rm -rf phonegap/www/res/icon/ios/*
+	rm -rf phonegap/www/img/icon.png
 	cd phonegap && \
 		phonegap build android --release
 	jarsigner -verbose \
@@ -42,5 +48,6 @@ apk: build-android
 	zipalign -v 4 \
 		phonegap/platforms/android/build/outputs/apk/android-release-unsigned.apk \
 		android.apk
+	git checkout phonegap/www
 	echo created android.apk
 
