@@ -6,6 +6,10 @@ var http = require('http')
 var url = require('url')
 var ws = require('ws')
 
+function log(msg) {
+  console.log((new Date).toISOString() + ' ' + msg)
+}
+
 var botRoom = require('./bot-room')
 
 var statics = ecstatic({ root: __dirname })
@@ -19,12 +23,28 @@ var wss = new ws.Server({ server: server })
 
 var MAX_PER_ROOM = 20
 
+var MAX_IDLE_TIME = 30000
+
+function autoDisconnect(ws, playerId) {
+  var timeout = setTimeout(disconnect, MAX_IDLE_TIME)
+  ws.on('message', function () {
+    clearTimeout(timeout)
+    timeout = setTimeout(disconnect, MAX_IDLE_TIME)
+  })
+  function disconnect() {
+    log('client ' + playerId + ' is getting kicked for inactivity')
+    ws.close()
+  }
+}
+
 function room() {
   var roomEvents = new events.EventEmitter
   return botRoom({
     count: 0,
     add: function addToRoom(ws) {
       this.count++
+      var playerId = Math.random()
+      log('client ' + playerId + ' has connected')
       const onMove = (moveData) => { ws.send(moveData, () => {}) }
       const onMessage = (message) => { roomEvents.emit('move', message) }
       ws.on('message', onMessage)
@@ -32,11 +52,16 @@ function room() {
       ws.on('error', (e) => { console.error(e) })
       ws.on('close', () => {
         this.count--
+        log('client ' + playerId + ' has disconnected')
+        if (this.count <= 0) {
+          log('deleted room')
+        }
         ws.removeListener('message', onMessage)
         roomEvents.removeListener('move', onMove)
       })
+      autoDisconnect(ws, playerId)
     },
-  }, roomEvents)
+  }, roomEvents, log)
 }
 
 var rooms = (function push(arr, c) {
@@ -58,6 +83,7 @@ setInterval(() => {
 wss.on('connection', ws => {
   for (var i = 0; i < rooms.length; i++) {
     if (rooms[i].count < MAX_PER_ROOM) {
+      log('created new room')
       rooms[i].add(ws)
       return
     }
@@ -66,6 +92,6 @@ wss.on('connection', ws => {
 
 var port = +process.env['PORT'] || 3000
 server.listen(port).on('listening', function () {
-  console.log('server listening on port ' + port)
+  log('server listening on port ' + port)
 })
 
