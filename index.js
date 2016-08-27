@@ -6,10 +6,6 @@ var http = require('http')
 var url = require('url')
 var ws = require('ws')
 
-function log(msg) {
-  console.log((new Date).toISOString() + ' ' + msg)
-}
-
 var botRoom = require('./bot-room')
 
 var statics = ecstatic({ root: __dirname })
@@ -32,7 +28,7 @@ function autoDisconnect(ws, playerId) {
     timeout = setTimeout(disconnect, MAX_IDLE_TIME)
   })
   function disconnect() {
-    log('client ' + playerId + ' is getting kicked for inactivity')
+    console.log('client ' + playerId + ' is getting kicked for inactivity')
     ws.close()
   }
 }
@@ -44,7 +40,7 @@ function room() {
     add: function addToRoom(ws) {
       this.count++
       var playerId = Math.random()
-      log('client ' + playerId + ' has connected')
+      console.log('client ' + playerId + ' has connected')
       const onMove = (moveData) => { ws.send(moveData, () => {}) }
       const onMessage = (message) => { roomEvents.emit('move', message) }
       ws.on('message', onMessage)
@@ -52,16 +48,16 @@ function room() {
       ws.on('error', (e) => { console.error(e) })
       ws.on('close', () => {
         this.count--
-        log('client ' + playerId + ' has disconnected')
+        console.log('client ' + playerId + ' has disconnected')
         if (this.count <= 0) {
-          log('deleted room')
+          console.log('deleted room')
         }
         ws.removeListener('message', onMessage)
         roomEvents.removeListener('move', onMove)
       })
       autoDisconnect(ws, playerId)
     },
-  }, roomEvents, log)
+  }, roomEvents)
 }
 
 var rooms = (function push(arr, c) {
@@ -83,7 +79,7 @@ setInterval(() => {
 wss.on('connection', ws => {
   for (var i = 0; i < rooms.length; i++) {
     if (rooms[i].count < MAX_PER_ROOM) {
-      log('created new room')
+      console.log('created new room')
       rooms[i].add(ws)
       return
     }
@@ -92,6 +88,6 @@ wss.on('connection', ws => {
 
 var port = +process.env['PORT'] || 3000
 server.listen(port).on('listening', function () {
-  log('server listening on port ' + port)
+  console.log('server listening on port ' + port)
 })
 
