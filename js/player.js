@@ -176,38 +176,39 @@ var Player = function(x, y, isenemy) {
     var change_sy = Math.sin(now_angle - QUARTER_TAU) * me.speed * dt;
     me.incr_x = 0
     me.incr_y = 0
+
     if(up) {
-      if(map.is_free(Math.floor(me.x + change_x), Math.floor(me.y))) {
+      if(map.is_free(me.x + change_x, me.y)) {
         me.incr_x += change_x * up;
       }
-      if(map.is_free(Math.floor(me.x), Math.floor(me.y + change_y))) {
+      if(map.is_free(me.x, me.y + change_y)) {
         me.incr_y += change_y * up;
       }
     }
 
     if(down) {
-      if(map.is_free(Math.floor(me.x - change_x), Math.floor(me.y))) {
+      if(map.is_free(me.x - change_x, me.y)) {
         me.incr_x -= change_x * down;
       }
-      if(map.is_free(Math.floor(me.x), Math.floor(me.y - change_y))) {
+      if(map.is_free(me.x, me.y - change_y)) {
         me.incr_y -= change_y * down;
       }
     }
 
     if(sleft) {
-      if(map.is_free(Math.floor(me.x + me.incr_x + change_sx * sleft), Math.floor(me.y + me.incr_y))) {
+      if(map.is_free(me.x + me.incr_x + change_sx * sleft, me.y + me.incr_y)) {
         me.incr_x += change_sx * sleft;
       }
-      if(map.is_free(Math.floor(me.x + me.incr_x), Math.floor(me.y + me.incr_y + change_sy * sleft))) {
+      if(map.is_free(me.x + me.incr_x, me.y + me.incr_y + change_sy * sleft)) {
         me.incr_y += change_sy * sleft;
       }
     }
 
     if(sright) {
-      if(map.is_free(Math.floor(me.x + me.incr_x - change_sx * sright), Math.floor(me.y + me.incr_y))) {
+      if(map.is_free(me.x + me.incr_x - change_sx * sright, me.y + me.incr_y)) {
         me.incr_x -= change_sx * sright;
       }
-      if(map.is_free(Math.floor(me.x + me.incr_x), Math.floor(me.y + me.incr_y - change_sy * sright))) {
+      if(map.is_free(me.x + me.incr_x, me.y + me.incr_y - change_sy * sright)) {
         me.incr_y -= change_sy * sright;
       }
     }
